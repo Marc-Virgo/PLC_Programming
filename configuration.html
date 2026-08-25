@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLC Configuration</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}
+main{width:min(94vw,900px);margin:28px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
+select{width:100%;max-width:420px;padding:10px;margin-top:8px}.device-list{display:grid;gap:10px;margin-top:16px}
+.device-row{display:grid;grid-template-columns:42px 1fr 100px;gap:10px;align-items:center;border:1px solid #d1d5db;border-radius:10px;padding:12px}
+.device-row.enabled{border-color:#111827;background:#f9fafb}.address{font-family:Consolas,monospace;text-align:right;font-weight:700}
+.summary{margin-top:16px;padding:14px;background:#eef2ff;border-radius:10px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;color:white;font-size:1rem;font-weight:700;text-decoration:none;cursor:pointer}
+</style>
+</head>
+<body>
+<header><h1>PLC Configuration</h1></header>
+<main>
+<section class="card">
+<h2>Raspberry Pi Pico</h2>
+<label for="picoType">Pico model</label><br>
+<select id="picoType">
+<option value="pico">Raspberry Pi Pico (RP2040)</option>
+<option value="pico_w">Raspberry Pi Pico W (RP2040)</option>
+<option value="pico2">Raspberry Pi Pico 2 (RP2350)</option>
+<option value="pico2_w">Raspberry Pi Pico 2 W (RP2350)</option>
+</select>
+</section>
+<section class="card">
+<h2>I²C I/O Expansion Devices</h2>
+<p>Enable each MCP23017 installed on the I²C bus. The standard MCP23017 address range is shown below.</p>
+<div class="device-list">
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x20"><span>MCP23017 I/O Expander 1</span><span class="address">0x20</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x21"><span>MCP23017 I/O Expander 2</span><span class="address">0x21</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x22"><span>MCP23017 I/O Expander 3</span><span class="address">0x22</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x23"><span>MCP23017 I/O Expander 4</span><span class="address">0x23</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x24"><span>MCP23017 I/O Expander 5</span><span class="address">0x24</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x25"><span>MCP23017 I/O Expander 6</span><span class="address">0x25</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x26"><span>MCP23017 I/O Expander 7</span><span class="address">0x26</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x27"><span>MCP23017 I/O Expander 8</span><span class="address">0x27</span></label>
+</div>
+<div class="summary" id="summary">Enabled MCP23017 devices: 0<br>Expansion I/O points available: 0</div>
+<div class="actions"><button id="saveButton">Save Configuration</button><a class="btn" href="index.html">Return Home</a></div>
+</section>
+</main>
+<script>
+const picoType=document.getElementById('picoType');
+const devices=[...document.querySelectorAll('.mcp')];
+const summary=document.getElementById('summary');
+
+function updateSummary(){
+ const enabled=devices.filter(d=>d.checked);
+ devices.forEach(d=>d.closest('.device-row').classList.toggle('enabled',d.checked));
+ summary.innerHTML=`Enabled MCP23017 devices: ${enabled.length}<br>Expansion I/O points available: ${enabled.length*16}`;
+}
+function saveConfiguration(){
+ const config={picoType:picoType.value,i2cDevices:devices.filter(d=>d.checked).map(d=>({type:'MCP23017',address:d.dataset.address}))};
+ localStorage.setItem('picoPLCConfiguration',JSON.stringify(config));
+ alert('PLC configuration saved in this browser.');
+}
+function loadConfiguration(){
+ const saved=localStorage.getItem('picoPLCConfiguration');
+ if(saved){
+  try{
+   const config=JSON.parse(saved);
+   if(config.picoType)picoType.value=config.picoType;
+   const enabled=new Set((config.i2cDevices||[]).map(x=>x.address));
+   devices.forEach(d=>d.checked=enabled.has(d.dataset.address));
+  }catch(e){}
+ }
+ updateSummary();
+}
+devices.forEach(d=>d.addEventListener('change',updateSummary));
+document.getElementById('saveButton').addEventListener('click',saveConfiguration);
+loadConfiguration();
+</script>
+</body>
+</html>
