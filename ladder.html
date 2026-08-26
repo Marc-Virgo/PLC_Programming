@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic Editor</title>
+  <title>Ladder Logic</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -30,14 +30,72 @@
   user-select: none;
   z-index: 4;
 }
+
+.hidden{display:none!important}
+
+.editor-toggle-button{
+  border:0;
+  border-radius:8px;
+  padding:11px 18px;
+  font-size:1rem;
+  font-weight:700;
+  cursor:pointer;
+  background:#374151;
+  color:white;
+}
+.editor-toggle-button:hover{background:#4b5563}
+
+.delete-control{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-size:.92rem;
+  font-weight:700;
+  white-space:nowrap;
+  cursor:pointer;
+}
+.delete-control input{
+  width:18px;
+  height:18px;
+  margin:0;
+}
+
+.cell-highlight{
+  position:absolute;
+  width:140px;
+  height:140px;
+  pointer-events:none;
+  display:none;
+  z-index:15;
+  border:2px solid transparent;
+  box-sizing:border-box;
+}
+
+.cell-highlight.green{
+  display:block;
+  border-color:#16a34a;
+  box-shadow:
+    inset 0 0 7px rgba(22,163,74,.8),
+    0 0 7px rgba(22,163,74,.8);
+}
+
+.cell-highlight.red{
+  display:block;
+  border-color:#dc2626;
+  box-shadow:
+    inset 0 0 7px rgba(220,38,38,.85),
+    0 0 7px rgba(220,38,38,.85);
+}
 </style>
 </head>
 <body>
 <div class="app">
-<header class="topbar"><div class="title">Ladder Logic Editor</div><button class="category-button active" data-category="basic">Basic</button><button class="category-button" data-category="math">Math</button><button class="category-button" data-category="special">Special</button><button class="file-button first" id="openButton" type="button">Open</button><button class="file-button" id="saveButton" type="button">Save</button><button class="file-button" id="saveAsButton" type="button">Save As</button><button class="add-rows-button" id="addRowsButton" type="button">Add 8 Rows</button><a class="home-button" href="index.html">Home</a></header>
+<header class="topbar"><div class="title">Ladder Logic</div>
+      <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button><button class="category-button editor-control hidden active" data-category="basic">Basic</button><button class="category-button editor-control hidden" data-category="math">Math</button><button class="category-button editor-control hidden" data-category="special">Special</button><label class="delete-control editor-control hidden"><input type="radio" name="editorMode" id="deleteObjectMode" value="delete"><span>Delete Object</span></label><button class="file-button first" id="openButton" type="button">Open</button><button class="file-button" id="saveButton" type="button">Save</button><button class="file-button" id="saveAsButton" type="button">Save As</button><button class="add-rows-button" id="addRowsButton" type="button">Add 8 Rows</button><a class="home-button" href="index.html">Home</a></header>
 <main class="main">
 <aside class="palette"><h2 class="palette-heading" id="paletteHeading">Basic Blocks</h2><div class="tile-list" id="tileList"></div></aside>
-<section class="workspace-wrap"><div class="workspace-toolbar">Ladder workspace — <span id="rowCount">16 major rows</span></div><div class="workspace"><div class="ladder-canvas"><div class="rail left"></div></div></div></section>
+<section class="workspace-wrap"><div class="workspace-toolbar">Ladder workspace — <span id="rowCount">16 major rows</span></div><div class="workspace"><div class="ladder-canvas"><div class="rail left"></div>
+            <div id="cellHighlight" class="cell-highlight"></div></div></div></section>
 </main>
 </div>
 <img id="placementPreview" class="placement-preview" alt="">
@@ -126,18 +184,25 @@ const placeableDefinitions = {
 const tileList = document.getElementById("tileList");
 const paletteHeading = document.getElementById("paletteHeading");
 const categoryButtons = [...document.querySelectorAll(".category-button")];
+const editorControls = [...document.querySelectorAll(".editor-control")];
+const editorToggleButton = document.getElementById("editorToggleButton");
+const deleteObjectMode = document.getElementById("deleteObjectMode");
 const ladderCanvas = document.querySelector(".ladder-canvas");
 const workspace = document.querySelector(".workspace");
 const addRowsButton = document.getElementById("addRowsButton");
 const rowCount = document.getElementById("rowCount");
 const placementPreview = document.getElementById("placementPreview");
+const cellHighlight = document.getElementById("cellHighlight");
 
 let majorRows = 16;
 const majorCellSize = 140;
+let editorEnabled = false;
 let placementMode = null;
 let placementDefinition = null;
 let placementImage = null;
 let placementLabel = null;
+let deleteMode = false;
+let hoveredCell = null;
 
 function resolveImage(path) {
   return new URL(path, window.location.href).href;
@@ -153,7 +218,12 @@ function renderPalette(category) {
     tile.dataset.blockType = blockName;
 
     if (placeableDefinitions[blockName]) {
-      tile.addEventListener("click", () => activatePlacementMode(blockName));
+      tile.addEventListener("click", () => {
+        if (!editorEnabled) return;
+        deleteObjectMode.checked = false;
+        deleteMode = false;
+        activatePlacementMode(blockName);
+      });
     }
 
     tileList.appendChild(tile);
@@ -164,6 +234,7 @@ function renderPalette(category) {
 
 categoryButtons.forEach(button => {
   button.addEventListener("click", () => {
+    if (!editorEnabled) return;
     categoryButtons.forEach(b => b.classList.remove("active"));
     button.classList.add("active");
     renderPalette(button.dataset.category);
@@ -180,6 +251,35 @@ addRowsButton.addEventListener("click", () => {
   updateCanvasHeight();
 });
 
+function setEditorEnabled(enabled) {
+  editorEnabled = enabled;
+  editorToggleButton.textContent = enabled ? "Disable Editor" : "Enable Editor";
+
+  editorControls.forEach(control => {
+    control.classList.toggle("hidden", !enabled);
+  });
+
+  if (!enabled) {
+    deleteMode = false;
+    deleteObjectMode.checked = false;
+    cancelPlacementMode();
+    hideCellHighlight();
+  }
+}
+
+editorToggleButton.addEventListener("click", () => {
+  setEditorEnabled(!editorEnabled);
+});
+
+deleteObjectMode.addEventListener("change", () => {
+  if (!editorEnabled) return;
+  deleteMode = deleteObjectMode.checked;
+  if (deleteMode) {
+    cancelPlacementMode();
+  }
+  updateHighlightForHoveredCell();
+});
+
 function activatePlacementMode(blockName) {
   const definition = placeableDefinitions[blockName];
   if (!definition) return;
@@ -192,14 +292,17 @@ function activatePlacementMode(blockName) {
   placementPreview.src = placementImage;
   placementPreview.style.width = definition.width + "px";
   placementPreview.style.height = definition.height + "px";
+
   if (definition.key === "counter") {
-    // Keep the counter's upper-left corner near the pointer for easier two-cell placement.
     placementPreview.style.transform = "translate(6px, 6px)";
   } else {
-    placementPreview.style.transform = `translate(${-definition.width / 2}px, ${-definition.height / 2}px)`;
+    placementPreview.style.transform =
+      `translate(${-definition.width / 2}px, ${-definition.height / 2}px)`;
   }
+
   placementPreview.style.display = "block";
   workspace.classList.add("no-contact-placement-active");
+  updateHighlightForHoveredCell();
 }
 
 function cancelPlacementMode() {
@@ -211,14 +314,119 @@ function cancelPlacementMode() {
   workspace.classList.remove("no-contact-placement-active");
 }
 
+function getTileOccupiedCells(tile) {
+  const col = parseInt(tile.dataset.majorColumn || "0", 10);
+  const row = parseInt(tile.dataset.majorRow || "0", 10);
+  const spanRows = parseInt(tile.dataset.spanRows || "1", 10);
+  const cells = [];
+
+  for (let r = 0; r < spanRows; r++) {
+    cells.push({ col, row: row + r });
+  }
+
+  return cells;
+}
+
+function getTileOccupyingCell(col, row) {
+  const tiles = [...ladderCanvas.querySelectorAll(".placed-tile")];
+
+  for (const tile of tiles) {
+    const occupied = getTileOccupiedCells(tile);
+    if (occupied.some(cell => cell.col === col && cell.row === row)) {
+      return tile;
+    }
+  }
+
+  return null;
+}
+
+function removeTileOccupyingCell(col, row) {
+  const tile = getTileOccupyingCell(col, row);
+  if (tile) tile.remove();
+}
+
+function getCellFromMouse(event) {
+  const rect = ladderCanvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+
+  if (x < 0 || y < 0 || x >= ladderCanvas.offsetWidth || y >= ladderCanvas.offsetHeight) {
+    return null;
+  }
+
+  const col = Math.floor(x / majorCellSize);
+  const row = Math.floor(y / majorCellSize);
+
+  if (col < 0 || col >= 9 || row < 0 || row >= majorRows) return null;
+  return { col, row };
+}
+
+function hideCellHighlight() {
+  cellHighlight.style.display = "none";
+  cellHighlight.classList.remove("green", "red");
+}
+
+function showCellHighlight(col, row, mode) {
+  cellHighlight.style.left = (col * majorCellSize) + "px";
+  cellHighlight.style.top = (row * majorCellSize) + "px";
+  cellHighlight.classList.remove("green", "red");
+  cellHighlight.classList.add(mode);
+}
+
+function updateHighlightForHoveredCell() {
+  if (!editorEnabled || !hoveredCell) {
+    hideCellHighlight();
+    return;
+  }
+
+  const { col, row } = hoveredCell;
+  const occupiedTile = getTileOccupyingCell(col, row);
+
+  if (deleteMode) {
+    if (occupiedTile) {
+      showCellHighlight(col, row, "red");
+    } else {
+      hideCellHighlight();
+    }
+    return;
+  }
+
+  // Green means valid empty cell for placing/selecting.
+  // No green glow if the cell is occupied.
+  if (!occupiedTile) {
+    // For multi-row blocks, ensure the required lower cell is also available.
+    if (placementDefinition && placementDefinition.spanRows > 1) {
+      if (row + placementDefinition.spanRows - 1 >= majorRows) {
+        hideCellHighlight();
+        return;
+      }
+
+      for (let r = 1; r < placementDefinition.spanRows; r++) {
+        if (getTileOccupyingCell(col, row + r)) {
+          hideCellHighlight();
+          return;
+        }
+      }
+    }
+
+    showCellHighlight(col, row, "green");
+  } else {
+    hideCellHighlight();
+  }
+}
+
 placementPreview.addEventListener("error", () => {
   console.error("Unable to load placement image:", placementPreview.src);
 });
 
 workspace.addEventListener("mousemove", event => {
-  if (!placementMode) return;
-  placementPreview.style.left = event.clientX + "px";
-  placementPreview.style.top = event.clientY + "px";
+  if (placementMode) {
+    placementPreview.style.left = event.clientX + "px";
+    placementPreview.style.top = event.clientY + "px";
+  }
+
+  hoveredCell = getCellFromMouse(event);
+  updateHighlightForHoveredCell();
 });
 
 workspace.addEventListener("mouseenter", () => {
@@ -226,48 +434,43 @@ workspace.addEventListener("mouseenter", () => {
 });
 
 workspace.addEventListener("mouseleave", () => {
-  if (placementMode) placementPreview.style.display = "none";
+  hoveredCell = null;
+  hideCellHighlight();
+
+  if (placementMode) {
+    placementPreview.style.display = "none";
+  }
 });
 
-function getTileOccupiedCells(tile) {
-  const col = parseInt(tile.dataset.majorColumn || "0", 10);
-  const row = parseInt(tile.dataset.majorRow || "0", 10);
-  const spanRows = parseInt(tile.dataset.spanRows || "1", 10);
-  const cells = [];
-  for (let r = 0; r < spanRows; r++) {
-    cells.push({ col, row: row + r });
-  }
-  return cells;
-}
-
-function removeTileOccupyingCell(col, row) {
-  const placedTiles = [...ladderCanvas.querySelectorAll(".placed-tile")];
-  for (const tile of placedTiles) {
-    const occupied = getTileOccupiedCells(tile);
-    if (occupied.some(cell => cell.col === col && cell.row === row)) {
-      tile.remove();
-    }
-  }
-}
-
 workspace.addEventListener("click", event => {
-  if (!placementMode || !placementImage || !placementDefinition) return;
+  if (!editorEnabled) return;
 
-  const rect = ladderCanvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
+  const cell = getCellFromMouse(event);
+  if (!cell) return;
 
-  if (x < 0 || y < 0 || x >= ladderCanvas.offsetWidth || y >= ladderCanvas.offsetHeight) return;
+  const { col, row } = cell;
 
-  const col = Math.floor(x / majorCellSize);
-  const row = Math.floor(y / majorCellSize);
-
-  if (col < 0 || col >= 9 || row < 0 || row >= majorRows) return;
-
-  if (placementDefinition.spanRows > 1 && row + placementDefinition.spanRows - 1 >= majorRows) {
+  if (deleteMode) {
+    const tile = getTileOccupyingCell(col, row);
+    if (tile) {
+      tile.remove();
+      updateHighlightForHoveredCell();
+    }
     return;
   }
 
+  if (!placementMode || !placementImage || !placementDefinition) return;
+
+  // Green-highlight rules: don't place onto an occupied clicked cell.
+  if (getTileOccupyingCell(col, row)) return;
+
+  if (placementDefinition.spanRows > 1 &&
+      row + placementDefinition.spanRows - 1 >= majorRows) {
+    return;
+  }
+
+  // Counter keeps earlier requested behavior:
+  // if the lower cell contains an image, remove it before placing counter.
   if (placementDefinition.key === "counter") {
     removeTileOccupyingCell(col, row + 1);
   }
@@ -284,20 +487,24 @@ workspace.addEventListener("click", event => {
   image.style.width = placementDefinition.width + "px";
   image.style.height = placementDefinition.height + "px";
   image.style.left = (col * majorCellSize) + "px";
-  image.style.top = (row * majorCellSize + placementDefinition.topOffset) + "px";
+  image.style.top =
+    (row * majorCellSize + placementDefinition.topOffset) + "px";
 
   ladderCanvas.appendChild(image);
+  updateHighlightForHoveredCell();
 });
 
 workspace.addEventListener("contextmenu", event => {
   if (placementMode) {
     event.preventDefault();
     cancelPlacementMode();
+    updateHighlightForHoveredCell();
   }
 });
 
 renderPalette("basic");
 updateCanvasHeight();
+setEditorEnabled(false);
 </script>
 </body>
 </html>
