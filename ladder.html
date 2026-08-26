@@ -64,7 +64,7 @@ const headings = {
   special: "Special Blocks"
 };
 
-const contactDefinitions = {
+const placeableDefinitions = {
   "N.O. Contact": {
     key: "no_contact",
     image: "./images/normally_open.png"
@@ -80,6 +80,14 @@ const contactDefinitions = {
   "NGT Contact": {
     key: "ngt_contact",
     image: "./images/ngt_contact.png"
+  },
+  "Horizontal Shunt": {
+    key: "horizontal_shunt",
+    image: "./images/horizontal_shunt.png"
+  },
+  "Coil": {
+    key: "coil",
+    image: "./images/coil.png"
   }
 };
 
@@ -111,7 +119,7 @@ function renderPalette(category) {
     tile.textContent = blockName;
     tile.dataset.blockType = blockName;
 
-    if (contactDefinitions[blockName]) {
+    if (placeableDefinitions[blockName]) {
       tile.addEventListener("click", () => activatePlacementMode(blockName));
     }
 
@@ -140,7 +148,7 @@ addRowsButton.addEventListener("click", () => {
 });
 
 function activatePlacementMode(blockName) {
-  const definition = contactDefinitions[blockName];
+  const definition = placeableDefinitions[blockName];
   if (!definition) return;
 
   placementMode = definition.key;
@@ -200,8 +208,6 @@ workspace.addEventListener("click", event => {
   image.dataset.majorColumn = col;
   image.dataset.majorRow = row;
 
-  // 140 px tile width matches the major cell width.
-  // 56 px tile is vertically centered in the 140 px major cell.
   image.style.left = (col * majorCellSize) + "px";
   image.style.top = (row * majorCellSize + 42) + "px";
 
