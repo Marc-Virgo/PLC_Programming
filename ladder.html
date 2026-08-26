@@ -262,11 +262,18 @@ function setEditorEnabled(enabled) {
     control.classList.toggle("hidden", !enabled);
   });
 
-  if (!enabled) {
+  if (enabled) {
+    renderPalette("basic");
+    paletteHeading.textContent = "Basic Blocks";
+  } else {
     deleteMode = false;
     deleteObjectMode.checked = false;
     cancelPlacementMode();
     hideCellHighlight();
+
+    // Leave the left-side palette completely empty while editing is disabled.
+    tileList.innerHTML = "";
+    paletteHeading.textContent = "";
   }
 }
 
@@ -514,7 +521,6 @@ workspace.addEventListener("contextmenu", event => {
   }
 });
 
-renderPalette("basic");
 updateCanvasHeight();
 setEditorEnabled(false);
 </script>
