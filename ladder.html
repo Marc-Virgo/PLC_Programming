@@ -369,6 +369,14 @@ function getTileOccupyingCell(col, row) {
   return tiles.find(tile => tile.dataset.overlay === "true") || tiles[0];
 }
 
+function cellContainsTimerOrCounter(col, row) {
+  const tiles = getTilesOccupyingCell(col, row);
+  return tiles.some(tile =>
+    tile.dataset.blockType === "Timer" ||
+    tile.dataset.blockType === "Counter"
+  );
+}
+
 function removeTileOccupyingCell(col, row) {
   const tile = getTileOccupyingCell(col, row);
   if (tile) tile.remove();
@@ -531,7 +539,22 @@ workspace.addEventListener("click", event => {
 
   image.style.width = placementDefinition.width + "px";
   image.style.height = placementDefinition.height + "px";
-  image.style.left = (col * majorCellSize) + "px";
+
+  if (placementDefinition.key === "vertical_shunt") {
+    const leftEdge = col * majorCellSize;
+
+    if (cellContainsTimerOrCounter(col, row)) {
+      // Timer/Counter: first minor gridline inside the left edge.
+      image.style.left = (leftEdge + 28) + "px";
+    } else {
+      // Empty/contact/horizontal-shunt/other regular cell:
+      // place the shunt directly on the right major gridline.
+      image.style.left = (leftEdge + majorCellSize) + "px";
+    }
+  } else {
+    image.style.left = (col * majorCellSize) + "px";
+  }
+
   image.style.top =
     (row * majorCellSize + placementDefinition.topOffset) + "px";
 
