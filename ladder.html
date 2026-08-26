@@ -181,6 +181,15 @@ const placeableDefinitions = {
     height: 280,
     topOffset: 0,
     spanRows: 2
+  },
+  "Vertical Shunt": {
+    key: "vertical_shunt",
+    image: "./images/vertical_shunt.png",
+    width: 140,
+    height: 280,
+    topOffset: 0,
+    spanRows: 2,
+    overlay: true
   }
 };
 
@@ -343,17 +352,21 @@ function getTileOccupiedCells(tile) {
   return cells;
 }
 
-function getTileOccupyingCell(col, row) {
+function getTilesOccupyingCell(col, row) {
   const tiles = [...ladderCanvas.querySelectorAll(".placed-tile")];
 
-  for (const tile of tiles) {
+  return tiles.filter(tile => {
     const occupied = getTileOccupiedCells(tile);
-    if (occupied.some(cell => cell.col === col && cell.row === row)) {
-      return tile;
-    }
-  }
+    return occupied.some(cell => cell.col === col && cell.row === row);
+  });
+}
 
-  return null;
+function getTileOccupyingCell(col, row) {
+  const tiles = getTilesOccupyingCell(col, row);
+  if (!tiles.length) return null;
+
+  // Prefer an overlay such as Vertical Shunt when deleting/selecting.
+  return tiles.find(tile => tile.dataset.overlay === "true") || tiles[0];
 }
 
 function removeTileOccupyingCell(col, row) {
@@ -410,10 +423,19 @@ function updateHighlightForHoveredCell() {
     return;
   }
 
-  // Green means valid empty cell for placing/selecting.
-  // No green glow if the cell is occupied.
+  // Vertical Shunt is an overlay and may be added even when the two cells
+  // already contain contacts, coils, counters, or other regular elements.
+  if (placementDefinition && placementDefinition.key === "vertical_shunt") {
+    if (row + 1 < majorRows) {
+      showCellHighlight(col, row, "green");
+    } else {
+      hideCellHighlight();
+    }
+    return;
+  }
+
+  // Other blocks require an empty clicked cell.
   if (!occupiedTile) {
-    // For multi-row blocks, ensure the required lower cell is also available.
     if (placementDefinition && placementDefinition.spanRows > 1) {
       if (row + placementDefinition.spanRows - 1 >= majorRows) {
         hideCellHighlight();
@@ -480,8 +502,11 @@ workspace.addEventListener("click", event => {
 
   if (!placementMode || !placementImage || !placementDefinition) return;
 
-  // Green-highlight rules: don't place onto an occupied clicked cell.
-  if (getTileOccupyingCell(col, row)) return;
+  const isOverlay = placementDefinition.overlay === true;
+
+  // Normal blocks cannot be placed onto an occupied clicked cell.
+  // Vertical Shunt is explicitly allowed to overlay existing elements.
+  if (!isOverlay && getTileOccupyingCell(col, row)) return;
 
   if (placementDefinition.spanRows > 1 &&
       row + placementDefinition.spanRows - 1 >= majorRows) {
@@ -502,12 +527,17 @@ workspace.addEventListener("click", event => {
   image.dataset.majorColumn = col;
   image.dataset.majorRow = row;
   image.dataset.spanRows = placementDefinition.spanRows;
+  image.dataset.overlay = placementDefinition.overlay ? "true" : "false";
 
   image.style.width = placementDefinition.width + "px";
   image.style.height = placementDefinition.height + "px";
   image.style.left = (col * majorCellSize) + "px";
   image.style.top =
     (row * majorCellSize + placementDefinition.topOffset) + "px";
+
+  if (placementDefinition.overlay) {
+    image.style.zIndex = "12";
+  }
 
   ladderCanvas.appendChild(image);
   updateHighlightForHoveredCell();
