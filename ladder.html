@@ -253,7 +253,7 @@ addRowsButton.addEventListener("click", () => {
 
 function setEditorEnabled(enabled) {
   editorEnabled = enabled;
-  editorToggleButton.textContent = enabled ? "Disable Editor" : "Enable Editor";
+  editorToggleButton.textContent = enabled ? "Disable Edits" : "Enable Edits";
 
   editorControls.forEach(control => {
     control.classList.toggle("hidden", !enabled);
