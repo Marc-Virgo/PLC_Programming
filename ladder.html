@@ -192,7 +192,12 @@ function activatePlacementMode(blockName) {
   placementPreview.src = placementImage;
   placementPreview.style.width = definition.width + "px";
   placementPreview.style.height = definition.height + "px";
-  placementPreview.style.transform = `translate(${-definition.width / 2}px, ${-definition.height / 2}px)`;
+  if (definition.key === "counter") {
+    // Keep the counter's upper-left corner near the pointer for easier two-cell placement.
+    placementPreview.style.transform = "translate(6px, 6px)";
+  } else {
+    placementPreview.style.transform = `translate(${-definition.width / 2}px, ${-definition.height / 2}px)`;
+  }
   placementPreview.style.display = "block";
   workspace.classList.add("no-contact-placement-active");
 }
