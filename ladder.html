@@ -541,15 +541,18 @@ workspace.addEventListener("click", event => {
   image.style.height = placementDefinition.height + "px";
 
   if (placementDefinition.key === "vertical_shunt") {
-    const leftEdge = col * majorCellSize;
+    // The 140x280 shunt overlay always begins in the clicked major cell
+    // and extends only into the major cell directly below it.
+    image.style.left = (col * majorCellSize) + "px";
 
     if (cellContainsTimerOrCounter(col, row)) {
-      // Timer/Counter: first minor gridline inside the left edge.
-      image.style.left = (leftEdge + 28) + "px";
+      // For a Timer/Counter, use the version whose line is at the first
+      // minor grid line (28 px) inside the clicked cell.
+      image.src = resolveImage("./images/vertical_shunt_inner.png");
     } else {
-      // Empty/contact/horizontal-shunt/other regular cell:
-      // place the shunt directly on the right major gridline.
-      image.style.left = (leftEdge + majorCellSize) + "px";
+      // Otherwise the line is drawn on the right major-grid boundary
+      // of the clicked cell, while the image itself stays in that cell.
+      image.src = resolveImage("./images/vertical_shunt.png");
     }
   } else {
     image.style.left = (col * majorCellSize) + "px";
