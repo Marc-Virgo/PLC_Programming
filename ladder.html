@@ -67,27 +67,59 @@ const headings = {
 const placeableDefinitions = {
   "N.O. Contact": {
     key: "no_contact",
-    image: "./images/normally_open.png"
+    image: "./images/normally_open.png",
+    width: 140,
+    height: 56,
+    topOffset: 42,
+    spanRows: 1
   },
   "N.C. Contact": {
     key: "nc_contact",
-    image: "./images/normally_closed.png"
+    image: "./images/normally_closed.png",
+    width: 140,
+    height: 56,
+    topOffset: 42,
+    spanRows: 1
   },
   "PGT Contact": {
     key: "pgt_contact",
-    image: "./images/pgt_contact.png"
+    image: "./images/pgt_contact.png",
+    width: 140,
+    height: 56,
+    topOffset: 42,
+    spanRows: 1
   },
   "NGT Contact": {
     key: "ngt_contact",
-    image: "./images/ngt_contact.png"
+    image: "./images/ngt_contact.png",
+    width: 140,
+    height: 56,
+    topOffset: 42,
+    spanRows: 1
   },
   "Horizontal Shunt": {
     key: "horizontal_shunt",
-    image: "./images/horizontal_shunt.png"
+    image: "./images/horizontal_shunt.png",
+    width: 140,
+    height: 56,
+    topOffset: 42,
+    spanRows: 1
   },
   "Coil": {
     key: "coil",
-    image: "./images/coil.png"
+    image: "./images/coil.png",
+    width: 140,
+    height: 56,
+    topOffset: 42,
+    spanRows: 1
+  },
+  "Counter": {
+    key: "counter",
+    image: "./images/counter.png",
+    width: 140,
+    height: 280,
+    topOffset: 0,
+    spanRows: 2
   }
 };
 
@@ -103,6 +135,7 @@ const placementPreview = document.getElementById("placementPreview");
 let majorRows = 16;
 const majorCellSize = 140;
 let placementMode = null;
+let placementDefinition = null;
 let placementImage = null;
 let placementLabel = null;
 
@@ -152,16 +185,21 @@ function activatePlacementMode(blockName) {
   if (!definition) return;
 
   placementMode = definition.key;
+  placementDefinition = definition;
   placementLabel = blockName;
   placementImage = resolveImage(definition.image);
 
   placementPreview.src = placementImage;
+  placementPreview.style.width = definition.width + "px";
+  placementPreview.style.height = definition.height + "px";
+  placementPreview.style.transform = `translate(${-definition.width / 2}px, ${-definition.height / 2}px)`;
   placementPreview.style.display = "block";
   workspace.classList.add("no-contact-placement-active");
 }
 
 function cancelPlacementMode() {
   placementMode = null;
+  placementDefinition = null;
   placementImage = null;
   placementLabel = null;
   placementPreview.style.display = "none";
@@ -186,8 +224,29 @@ workspace.addEventListener("mouseleave", () => {
   if (placementMode) placementPreview.style.display = "none";
 });
 
+function getTileOccupiedCells(tile) {
+  const col = parseInt(tile.dataset.majorColumn || "0", 10);
+  const row = parseInt(tile.dataset.majorRow || "0", 10);
+  const spanRows = parseInt(tile.dataset.spanRows || "1", 10);
+  const cells = [];
+  for (let r = 0; r < spanRows; r++) {
+    cells.push({ col, row: row + r });
+  }
+  return cells;
+}
+
+function removeTileOccupyingCell(col, row) {
+  const placedTiles = [...ladderCanvas.querySelectorAll(".placed-tile")];
+  for (const tile of placedTiles) {
+    const occupied = getTileOccupiedCells(tile);
+    if (occupied.some(cell => cell.col === col && cell.row === row)) {
+      tile.remove();
+    }
+  }
+}
+
 workspace.addEventListener("click", event => {
-  if (!placementMode || !placementImage) return;
+  if (!placementMode || !placementImage || !placementDefinition) return;
 
   const rect = ladderCanvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
@@ -200,6 +259,14 @@ workspace.addEventListener("click", event => {
 
   if (col < 0 || col >= 9 || row < 0 || row >= majorRows) return;
 
+  if (placementDefinition.spanRows > 1 && row + placementDefinition.spanRows - 1 >= majorRows) {
+    return;
+  }
+
+  if (placementDefinition.key === "counter") {
+    removeTileOccupyingCell(col, row + 1);
+  }
+
   const image = document.createElement("img");
   image.src = placementImage;
   image.alt = placementLabel;
@@ -207,9 +274,12 @@ workspace.addEventListener("click", event => {
   image.dataset.blockType = placementLabel;
   image.dataset.majorColumn = col;
   image.dataset.majorRow = row;
+  image.dataset.spanRows = placementDefinition.spanRows;
 
+  image.style.width = placementDefinition.width + "px";
+  image.style.height = placementDefinition.height + "px";
   image.style.left = (col * majorCellSize) + "px";
-  image.style.top = (row * majorCellSize + 42) + "px";
+  image.style.top = (row * majorCellSize + placementDefinition.topOffset) + "px";
 
   ladderCanvas.appendChild(image);
 });
