@@ -40,7 +40,7 @@
 <section class="workspace-wrap"><div class="workspace-toolbar">Ladder workspace — <span id="rowCount">16 major rows</span></div><div class="workspace"><div class="ladder-canvas"><div class="rail left"></div></div></div></section>
 </main>
 </div>
-<img id="placementPreview" class="placement-preview" src="images/normally_open.png" alt="">
+<img id="placementPreview" class="placement-preview" alt="">
 <script>
 const blockLibrary = {
   basic: [
@@ -64,6 +64,25 @@ const headings = {
   special: "Special Blocks"
 };
 
+const contactDefinitions = {
+  "N.O. Contact": {
+    key: "no_contact",
+    image: "./images/normally_open.png"
+  },
+  "N.C. Contact": {
+    key: "nc_contact",
+    image: "./images/normally_closed.png"
+  },
+  "PGT Contact": {
+    key: "pgt_contact",
+    image: "./images/pgt_contact.png"
+  },
+  "NGT Contact": {
+    key: "ngt_contact",
+    image: "./images/ngt_contact.png"
+  }
+};
+
 const tileList = document.getElementById("tileList");
 const paletteHeading = document.getElementById("paletteHeading");
 const categoryButtons = [...document.querySelectorAll(".category-button")];
@@ -72,13 +91,16 @@ const workspace = document.querySelector(".workspace");
 const addRowsButton = document.getElementById("addRowsButton");
 const rowCount = document.getElementById("rowCount");
 const placementPreview = document.getElementById("placementPreview");
-const NO_CONTACT_IMAGE = new URL("./images/normally_open.png", window.location.href).href;
-placementPreview.src = NO_CONTACT_IMAGE;
-placementPreview.addEventListener("error",()=>console.error("Unable to load N.O. contact image:", NO_CONTACT_IMAGE));
 
 let majorRows = 16;
 const majorCellSize = 140;
 let placementMode = null;
+let placementImage = null;
+let placementLabel = null;
+
+function resolveImage(path) {
+  return new URL(path, window.location.href).href;
+}
 
 function renderPalette(category) {
   tileList.innerHTML = "";
@@ -89,8 +111,8 @@ function renderPalette(category) {
     tile.textContent = blockName;
     tile.dataset.blockType = blockName;
 
-    if (blockName === "N.O. Contact") {
-      tile.addEventListener("click", activateNOContactMode);
+    if (contactDefinitions[blockName]) {
+      tile.addEventListener("click", () => activatePlacementMode(blockName));
     }
 
     tileList.appendChild(tile);
@@ -117,34 +139,47 @@ addRowsButton.addEventListener("click", () => {
   updateCanvasHeight();
 });
 
-function activateNOContactMode() {
-  placementMode = "no_contact";
-  workspace.classList.add("no-contact-placement-active");
+function activatePlacementMode(blockName) {
+  const definition = contactDefinitions[blockName];
+  if (!definition) return;
+
+  placementMode = definition.key;
+  placementLabel = blockName;
+  placementImage = resolveImage(definition.image);
+
+  placementPreview.src = placementImage;
   placementPreview.style.display = "block";
+  workspace.classList.add("no-contact-placement-active");
 }
 
 function cancelPlacementMode() {
   placementMode = null;
-  workspace.classList.remove("no-contact-placement-active");
+  placementImage = null;
+  placementLabel = null;
   placementPreview.style.display = "none";
+  workspace.classList.remove("no-contact-placement-active");
 }
 
+placementPreview.addEventListener("error", () => {
+  console.error("Unable to load placement image:", placementPreview.src);
+});
+
 workspace.addEventListener("mousemove", event => {
-  if (placementMode !== "no_contact") return;
+  if (!placementMode) return;
   placementPreview.style.left = event.clientX + "px";
   placementPreview.style.top = event.clientY + "px";
 });
 
 workspace.addEventListener("mouseenter", () => {
-  if (placementMode === "no_contact") placementPreview.style.display = "block";
+  if (placementMode) placementPreview.style.display = "block";
 });
 
 workspace.addEventListener("mouseleave", () => {
-  if (placementMode === "no_contact") placementPreview.style.display = "none";
+  if (placementMode) placementPreview.style.display = "none";
 });
 
 workspace.addEventListener("click", event => {
-  if (placementMode !== "no_contact") return;
+  if (!placementMode || !placementImage) return;
 
   const rect = ladderCanvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
@@ -158,13 +193,15 @@ workspace.addEventListener("click", event => {
   if (col < 0 || col >= 9 || row < 0 || row >= majorRows) return;
 
   const image = document.createElement("img");
-  image.src = NO_CONTACT_IMAGE;
-  image.alt = "Normally open contact";
+  image.src = placementImage;
+  image.alt = placementLabel;
   image.className = "placed-tile";
-  image.dataset.blockType = "N.O. Contact";
+  image.dataset.blockType = placementLabel;
   image.dataset.majorColumn = col;
   image.dataset.majorRow = row;
 
+  // 140 px tile width matches the major cell width.
+  // 56 px tile is vertically centered in the 140 px major cell.
   image.style.left = (col * majorCellSize) + "px";
   image.style.top = (row * majorCellSize + 42) + "px";
 
@@ -172,7 +209,7 @@ workspace.addEventListener("click", event => {
 });
 
 workspace.addEventListener("contextmenu", event => {
-  if (placementMode !== null) {
+  if (placementMode) {
     event.preventDefault();
     cancelPlacementMode();
   }
