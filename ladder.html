@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic</title>
+  <title>Ladder Logic — v1.0</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -28,7 +28,7 @@
   object-fit: fill;
   pointer-events: none;
   user-select: none;
-  z-index: 4;
+  z-index: 10;
 }
 
 .hidden{display:none!important}
@@ -89,6 +89,11 @@
     inset 0 0 12px rgba(220,38,38,.95),
     0 0 10px rgba(220,38,38,.9);
 }
+
+.placed-tile.vertical-shunt {
+  z-index: 20 !important;
+}
+
 </style>
 </head>
 <body>
@@ -540,6 +545,9 @@ function createPlacedTileFromProgramBlock(block) {
   image.dataset.majorRow = String(row);
   image.dataset.spanRows = String(spanRows);
   image.dataset.overlay = overlay ? "true" : "false";
+  if (block.type === "vertical_shunt") {
+    image.classList.add("vertical-shunt");
+  }
   image.dataset.properties = JSON.stringify(block.properties || {});
   image.dataset.ports = JSON.stringify(block.ports || defaultPortsForType(block.type));
 
@@ -560,7 +568,7 @@ function createPlacedTileFromProgramBlock(block) {
     image.src = resolveImage(definition.image);
   }
 
-  if (overlay) image.style.zIndex = "12";
+  if (overlay) image.style.zIndex = "20";
   ladderCanvas.appendChild(image);
 }
 
@@ -1032,6 +1040,9 @@ workspace.addEventListener("click", event => {
   image.dataset.majorRow = row;
   image.dataset.spanRows = placementDefinition.spanRows;
   image.dataset.overlay = placementDefinition.overlay ? "true" : "false";
+  if (placementDefinition.key === "vertical_shunt") {
+    image.classList.add("vertical-shunt");
+  }
   image.dataset.properties = JSON.stringify(
     defaultPropertiesForType(placementDefinition.programType)
   );
@@ -1063,7 +1074,7 @@ workspace.addEventListener("click", event => {
     (row * majorCellSize + placementDefinition.topOffset) + "px";
 
   if (placementDefinition.overlay) {
-    image.style.zIndex = "12";
+    image.style.zIndex = "20";
   }
 
   ladderCanvas.appendChild(image);
