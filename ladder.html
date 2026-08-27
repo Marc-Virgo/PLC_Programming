@@ -128,6 +128,7 @@ const headings = {
 const placeableDefinitions = {
   "N.O. Contact": {
     key: "no_contact",
+    programType: "normally_open",
     image: "./images/normally_open.png",
     width: 140,
     height: 56,
@@ -136,6 +137,7 @@ const placeableDefinitions = {
   },
   "N.C. Contact": {
     key: "nc_contact",
+    programType: "normally_closed",
     image: "./images/normally_closed.png",
     width: 140,
     height: 56,
@@ -144,6 +146,7 @@ const placeableDefinitions = {
   },
   "PGT Contact": {
     key: "pgt_contact",
+    programType: "pgt_contact",
     image: "./images/pgt_contact.png",
     width: 140,
     height: 56,
@@ -152,6 +155,7 @@ const placeableDefinitions = {
   },
   "NGT Contact": {
     key: "ngt_contact",
+    programType: "ngt_contact",
     image: "./images/ngt_contact.png",
     width: 140,
     height: 56,
@@ -160,6 +164,7 @@ const placeableDefinitions = {
   },
   "Horizontal Shunt": {
     key: "horizontal_shunt",
+    programType: "horizontal_shunt",
     image: "./images/horizontal_shunt.png",
     width: 140,
     height: 56,
@@ -168,6 +173,7 @@ const placeableDefinitions = {
   },
   "Coil": {
     key: "coil",
+    programType: "coil",
     image: "./images/coil.png",
     width: 140,
     height: 56,
@@ -176,6 +182,7 @@ const placeableDefinitions = {
   },
   "Counter": {
     key: "counter",
+    programType: "counter",
     image: "./images/counter.png",
     width: 140,
     height: 280,
@@ -184,6 +191,7 @@ const placeableDefinitions = {
   },
   "Vertical Shunt": {
     key: "vertical_shunt",
+    programType: "vertical_shunt",
     image: "./images/vertical_shunt_left.png",
     width: 140,
     height: 280,
@@ -205,6 +213,9 @@ const addRowsButton = document.getElementById("addRowsButton");
 const rowCount = document.getElementById("rowCount");
 const placementPreview = document.getElementById("placementPreview");
 const cellHighlight = document.getElementById("cellHighlight");
+const openButton = document.getElementById("openButton");
+const saveButton = document.getElementById("saveButton");
+const saveAsButton = document.getElementById("saveAsButton");
 
 let majorRows = 16;
 const majorCellSize = 140;
@@ -216,9 +227,478 @@ let placementLabel = null;
 let deleteMode = false;
 let hoveredCell = null;
 
+// Offline program/file state.
+let nextBlockId = 1;
+let currentFileHandle = null;
+let currentProgramName = "Untitled";
+let currentProgramRevision = 1;
+
 function resolveImage(path) {
   return new URL(path, window.location.href).href;
 }
+
+
+const programTypeToLabel = {
+  normally_open: "N.O. Contact",
+  normally_closed: "N.C. Contact",
+  pgt_contact: "PGT Contact",
+  ngt_contact: "NGT Contact",
+  horizontal_shunt: "Horizontal Shunt",
+  vertical_shunt: "Vertical Shunt",
+  coil: "Coil",
+  timer: "Timer",
+  counter: "Counter",
+  add: "Add",
+  subtract: "Subtract",
+  multiply: "Multiply",
+  divide: "Division",
+  block_move: "Block Move",
+  analog_in: "Analog In",
+  analog_out: "Analog Out",
+  pid: "PID"
+};
+
+function getDefinitionByProgramType(programType) {
+  return Object.entries(placeableDefinitions)
+    .find(([, definition]) => definition.programType === programType)?.[1] || null;
+}
+
+function getConfigurationForProgram() {
+  const fallback = { controller: "PICO_2_W", mcp23017: [] };
+
+  try {
+    const saved = localStorage.getItem("picoPLCConfiguration");
+    if (!saved) return fallback;
+
+    const config = JSON.parse(saved);
+    const controllerMap = {
+      pico: "PICO",
+      pico_w: "PICO_W",
+      pico2: "PICO_2",
+      pico2_w: "PICO_2_W"
+    };
+
+    return {
+      controller: controllerMap[config.picoType] || fallback.controller,
+      mcp23017: Array.isArray(config.i2cDevices)
+        ? config.i2cDevices
+            .filter(device => device && device.type === "MCP23017")
+            .map(device => ({
+              address: device.address,
+              enabled: true
+            }))
+        : []
+    };
+  } catch (error) {
+    console.warn("Unable to read PLC configuration:", error);
+    return fallback;
+  }
+}
+
+function defaultPortsForType(type) {
+  const boolPort = (name, direction) => ({
+    name,
+    direction,
+    dataType: "bool",
+    binding: null
+  });
+
+  switch (type) {
+    case "normally_open":
+    case "normally_closed":
+    case "pgt_contact":
+    case "ngt_contact":
+      return [
+        boolPort("input", "input"),
+        boolPort("condition", "input"),
+        boolPort("output", "output")
+      ];
+
+    case "horizontal_shunt":
+    case "coil":
+      return [
+        boolPort("input", "input"),
+        boolPort("output", "output")
+      ];
+
+    case "vertical_shunt":
+      return [
+        boolPort("upper", "bidirectional"),
+        boolPort("lower", "bidirectional")
+      ];
+
+    case "timer":
+    case "counter":
+      return [
+        boolPort("enable", "input"),
+        boolPort("reset", "input"),
+        boolPort("output", "output"),
+        boolPort("notOutput", "output")
+      ];
+
+    default:
+      return [];
+  }
+}
+
+function defaultPropertiesForType(type) {
+  if (type === "timer") return { presetMs: 1000 };
+  if (type === "counter") return { preset: 10 };
+  return {};
+}
+
+function runtimeFieldsForType(type) {
+  switch (type) {
+    case "normally_open":
+    case "normally_closed":
+      return ["input", "condition", "output"];
+
+    case "pgt_contact":
+    case "ngt_contact":
+      return ["input", "condition", "output", "previousCondition"];
+
+    case "horizontal_shunt":
+    case "coil":
+      return ["input", "output"];
+
+    case "vertical_shunt":
+      return ["upper", "lower", "output"];
+
+    case "timer":
+      return ["enable", "reset", "output", "notOutput", "accumulatedMs", "presetMs"];
+
+    case "counter":
+      return ["enable", "reset", "output", "notOutput", "accumulated", "preset"];
+
+    default:
+      return [];
+  }
+}
+
+function getProgramTypeFromTile(tile) {
+  if (tile.dataset.programType) return tile.dataset.programType;
+
+  const label = tile.dataset.blockType;
+  return placeableDefinitions[label]?.programType || null;
+}
+
+function getVerticalShuntVariant(tile) {
+  if (tile.dataset.variant) return tile.dataset.variant;
+  const source = tile.getAttribute("src") || "";
+  return source.includes("vertical_shunt_right.png") ? "right" : "left";
+}
+
+function serializePlacedBlock(tile) {
+  const type = getProgramTypeFromTile(tile);
+  if (!type) return null;
+
+  const blockId = parseInt(tile.dataset.blockId, 10);
+  const row = parseInt(tile.dataset.majorRow || "0", 10);
+  const col = parseInt(tile.dataset.majorColumn || "0", 10);
+  const spanRows = parseInt(tile.dataset.spanRows || "1", 10);
+  const overlay = tile.dataset.overlay === "true";
+
+  let properties = defaultPropertiesForType(type);
+  if (tile.dataset.properties) {
+    try {
+      properties = JSON.parse(tile.dataset.properties);
+    } catch (error) {
+      console.warn("Invalid stored block properties; using defaults.", error);
+    }
+  }
+
+  let ports = defaultPortsForType(type);
+  if (tile.dataset.ports) {
+    try {
+      ports = JSON.parse(tile.dataset.ports);
+    } catch (error) {
+      console.warn("Invalid stored block ports; using defaults.", error);
+    }
+  }
+
+  return {
+    id: blockId,
+    type,
+    position: { row, col },
+    geometry: {
+      spanRows,
+      spanCols: 1,
+      overlay,
+      occupiesCell: !overlay,
+      variant: type === "vertical_shunt" ? getVerticalShuntVariant(tile) : null
+    },
+    ports,
+    properties,
+    runtime: {
+      stateFields: runtimeFieldsForType(type)
+    }
+  };
+}
+
+function buildProgramObject() {
+  const blocks = [...ladderCanvas.querySelectorAll(".placed-tile")]
+    .map(serializePlacedBlock)
+    .filter(Boolean)
+    .sort((a, b) => a.id - b.id);
+
+  const target = getConfigurationForProgram();
+  const now = new Date().toISOString();
+
+  return {
+    format: "PICO_PLC_LADDER",
+    formatVersion: 1,
+    program: {
+      name: currentProgramName,
+      revision: currentProgramRevision,
+      description: "",
+      createdUtc: null,
+      modifiedUtc: now
+    },
+    target,
+    editor: {
+      grid: {
+        majorCellPx: 140,
+        minorCellPx: 28,
+        columns: 9
+      },
+      rows: majorRows
+    },
+    dataTables: {
+      booleanIO: [],
+      numeric: []
+    },
+    blocks
+  };
+}
+
+function validateProgramForOpen(program) {
+  if (!program || typeof program !== "object") {
+    throw new Error("The selected file does not contain a ladder program.");
+  }
+  if (program.format !== "PICO_PLC_LADDER") {
+    throw new Error("Unsupported file format.");
+  }
+  if (program.formatVersion !== 1) {
+    throw new Error("Unsupported ladder program version.");
+  }
+  if (!program.editor || !Number.isInteger(program.editor.rows) || program.editor.rows < 1) {
+    throw new Error("The program does not contain a valid editor row count.");
+  }
+  if (!Array.isArray(program.blocks)) {
+    throw new Error("The program does not contain a valid blocks array.");
+  }
+
+  const seenIds = new Set();
+  for (const block of program.blocks) {
+    if (!Number.isInteger(block.id) || block.id < 1 || seenIds.has(block.id)) {
+      throw new Error("Every block must have a unique positive integer id.");
+    }
+    seenIds.add(block.id);
+
+    if (!block.position ||
+        !Number.isInteger(block.position.row) ||
+        !Number.isInteger(block.position.col) ||
+        block.position.col < 0 ||
+        block.position.col > 8 ||
+        block.position.row < 0) {
+      throw new Error(`Block ${block.id} has an invalid position.`);
+    }
+
+    if (!programTypeToLabel[block.type]) {
+      throw new Error(`Block ${block.id} uses unsupported type "${block.type}".`);
+    }
+  }
+}
+
+function clearPlacedBlocks() {
+  ladderCanvas.querySelectorAll(".placed-tile").forEach(tile => tile.remove());
+}
+
+function createPlacedTileFromProgramBlock(block) {
+  const label = programTypeToLabel[block.type];
+  const definition = getDefinitionByProgramType(block.type);
+
+  // v1 can preserve unsupported/deferred Math/Special blocks in JSON, but
+  // this editor build can only render block types whose placement definitions exist.
+  if (!label || !definition) {
+    console.warn(`Block type "${block.type}" is defined by the program format but is not yet renderable.`);
+    return;
+  }
+
+  const row = block.position.row;
+  const col = block.position.col;
+  const spanRows = block.geometry?.spanRows || definition.spanRows || 1;
+  const overlay = block.geometry?.overlay === true;
+
+  const image = document.createElement("img");
+  image.alt = label;
+  image.className = "placed-tile";
+  image.dataset.blockId = String(block.id);
+  image.dataset.programType = block.type;
+  image.dataset.blockType = label;
+  image.dataset.majorColumn = String(col);
+  image.dataset.majorRow = String(row);
+  image.dataset.spanRows = String(spanRows);
+  image.dataset.overlay = overlay ? "true" : "false";
+  image.dataset.properties = JSON.stringify(block.properties || {});
+  image.dataset.ports = JSON.stringify(block.ports || defaultPortsForType(block.type));
+
+  image.style.width = definition.width + "px";
+  image.style.height = definition.height + "px";
+  image.style.left = (col * majorCellSize) + "px";
+  image.style.top = (row * majorCellSize + definition.topOffset) + "px";
+
+  if (block.type === "vertical_shunt") {
+    const variant = block.geometry?.variant === "right" ? "right" : "left";
+    image.dataset.variant = variant;
+    image.src = resolveImage(
+      variant === "right"
+        ? "./images/vertical_shunt_right.png"
+        : "./images/vertical_shunt_left.png"
+    );
+  } else {
+    image.src = resolveImage(definition.image);
+  }
+
+  if (overlay) image.style.zIndex = "12";
+  ladderCanvas.appendChild(image);
+}
+
+function loadProgramIntoEditor(program) {
+  validateProgramForOpen(program);
+
+  cancelPlacementMode();
+  deleteMode = false;
+  deleteObjectMode.checked = false;
+  clearPlacedBlocks();
+
+  majorRows = Math.max(1, program.editor.rows);
+  updateCanvasHeight();
+
+  const sortedBlocks = [...program.blocks].sort((a, b) => a.id - b.id);
+  sortedBlocks.forEach(createPlacedTileFromProgramBlock);
+
+  nextBlockId = sortedBlocks.reduce((maxId, block) => Math.max(maxId, block.id), 0) + 1;
+  currentProgramName = program.program?.name || "Untitled";
+  currentProgramRevision = Number.isInteger(program.program?.revision)
+    ? program.program.revision
+    : 1;
+
+  hideCellHighlight();
+}
+
+function jsonTextForCurrentProgram() {
+  return JSON.stringify(buildProgramObject(), null, 2) + "\n";
+}
+
+function normalizeJsonFilename(name) {
+  const trimmed = (name || "ladder_program").trim() || "ladder_program";
+  return trimmed.toLowerCase().endsWith(".json") ? trimmed : trimmed + ".json";
+}
+
+function downloadJsonFallback(filename, text) {
+  const blob = new Blob([text], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = normalizeJsonFilename(filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function saveWithHandle(handle, text) {
+  const writable = await handle.createWritable();
+  await writable.write(text);
+  await writable.close();
+}
+
+async function saveProgram(saveAs = false) {
+  const text = jsonTextForCurrentProgram();
+
+  try {
+    if ("showSaveFilePicker" in window) {
+      if (saveAs || !currentFileHandle) {
+        currentFileHandle = await window.showSaveFilePicker({
+          suggestedName: normalizeJsonFilename(currentProgramName),
+          types: [{
+            description: "Pico PLC Ladder Program",
+            accept: { "application/json": [".json"] }
+          }]
+        });
+        currentProgramName = currentFileHandle.name.replace(/\.json$/i, "") || currentProgramName;
+      }
+
+      // Rebuild after naming so program.name follows Save As.
+      await saveWithHandle(currentFileHandle, jsonTextForCurrentProgram());
+      return;
+    }
+
+    // Browser fallback: Save and Save As both create a normal JSON download.
+    downloadJsonFallback(currentProgramName, text);
+  } catch (error) {
+    if (error?.name !== "AbortError") {
+      console.error("Unable to save ladder program:", error);
+      alert("Unable to save the ladder program.");
+    }
+  }
+}
+
+async function openProgram() {
+  try {
+    if ("showOpenFilePicker" in window) {
+      const [handle] = await window.showOpenFilePicker({
+        multiple: false,
+        types: [{
+          description: "Pico PLC Ladder Program",
+          accept: { "application/json": [".json"] }
+        }]
+      });
+
+      const file = await handle.getFile();
+      const program = JSON.parse(await file.text());
+      loadProgramIntoEditor(program);
+      currentFileHandle = handle;
+      currentProgramName = file.name.replace(/\.json$/i, "") || currentProgramName;
+      return;
+    }
+
+    // Fallback for browsers without the File System Access API.
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json";
+    input.style.display = "none";
+    document.body.appendChild(input);
+
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      input.remove();
+      if (!file) return;
+
+      try {
+        const program = JSON.parse(await file.text());
+        loadProgramIntoEditor(program);
+        currentFileHandle = null;
+        currentProgramName = file.name.replace(/\.json$/i, "") || currentProgramName;
+      } catch (error) {
+        console.error("Unable to open ladder program:", error);
+        alert(error.message || "Unable to open the ladder program.");
+      }
+    }, { once: true });
+
+    input.click();
+  } catch (error) {
+    if (error?.name !== "AbortError") {
+      console.error("Unable to open ladder program:", error);
+      alert(error.message || "Unable to open the ladder program.");
+    }
+  }
+}
+
+openButton.addEventListener("click", openProgram);
+saveButton.addEventListener("click", () => saveProgram(false));
+saveAsButton.addEventListener("click", () => saveProgram(true));
 
 function renderPalette(category) {
   tileList.innerHTML = "";
@@ -545,11 +1025,19 @@ workspace.addEventListener("click", event => {
   image.src = placementImage;
   image.alt = placementLabel;
   image.className = "placed-tile";
+  image.dataset.blockId = String(nextBlockId++);
+  image.dataset.programType = placementDefinition.programType || "";
   image.dataset.blockType = placementLabel;
   image.dataset.majorColumn = col;
   image.dataset.majorRow = row;
   image.dataset.spanRows = placementDefinition.spanRows;
   image.dataset.overlay = placementDefinition.overlay ? "true" : "false";
+  image.dataset.properties = JSON.stringify(
+    defaultPropertiesForType(placementDefinition.programType)
+  );
+  image.dataset.ports = JSON.stringify(
+    defaultPortsForType(placementDefinition.programType)
+  );
 
   image.style.width = placementDefinition.width + "px";
   image.style.height = placementDefinition.height + "px";
@@ -560,9 +1048,11 @@ workspace.addEventListener("click", event => {
 
     if (cellContainsTimerOrCounter(col, row)) {
       // Timer/Counter: place the right-edge shunt variant.
+      image.dataset.variant = "right";
       image.src = resolveImage("./images/vertical_shunt_right.png");
     } else {
       // Empty cell, contact, or horizontal shunt: place the left variant.
+      image.dataset.variant = "left";
       image.src = resolveImage("./images/vertical_shunt_left.png");
     }
   } else {
