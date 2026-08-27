@@ -369,6 +369,13 @@ function getTileOccupyingCell(col, row) {
   return tiles.find(tile => tile.dataset.overlay === "true") || tiles[0];
 }
 
+function getBlockingTileOccupyingCell(col, row) {
+  // Overlay elements such as Vertical Shunt do not make a cell unavailable
+  // for placement of ordinary ladder blocks.
+  const tiles = getTilesOccupyingCell(col, row);
+  return tiles.find(tile => tile.dataset.overlay !== "true") || null;
+}
+
 function cellContainsTimerOrCounter(col, row) {
   const tiles = getTilesOccupyingCell(col, row);
   return tiles.some(tile =>
@@ -379,6 +386,11 @@ function cellContainsTimerOrCounter(col, row) {
 
 function removeTileOccupyingCell(col, row) {
   const tile = getTileOccupyingCell(col, row);
+  if (tile) tile.remove();
+}
+
+function removeBlockingTileOccupyingCell(col, row) {
+  const tile = getBlockingTileOccupyingCell(col, row);
   if (tile) tile.remove();
 }
 
@@ -421,6 +433,7 @@ function updateHighlightForHoveredCell() {
 
   const { col, row } = hoveredCell;
   const occupiedTile = getTileOccupyingCell(col, row);
+  const blockingTile = getBlockingTileOccupyingCell(col, row);
 
   if (deleteMode) {
     if (occupiedTile) {
@@ -442,8 +455,9 @@ function updateHighlightForHoveredCell() {
     return;
   }
 
-  // Other blocks require an empty clicked cell.
-  if (!occupiedTile) {
+  // Other blocks require no blocking block in the clicked cell.
+  // Vertical Shunts are overlays and do not block placement.
+  if (!blockingTile) {
     if (placementDefinition && placementDefinition.spanRows > 1) {
       if (row + placementDefinition.spanRows - 1 >= majorRows) {
         hideCellHighlight();
@@ -451,7 +465,7 @@ function updateHighlightForHoveredCell() {
       }
 
       for (let r = 1; r < placementDefinition.spanRows; r++) {
-        if (getTileOccupyingCell(col, row + r)) {
+        if (getBlockingTileOccupyingCell(col, row + r)) {
           hideCellHighlight();
           return;
         }
@@ -514,7 +528,7 @@ workspace.addEventListener("click", event => {
 
   // Normal blocks cannot be placed onto an occupied clicked cell.
   // Vertical Shunt is explicitly allowed to overlay existing elements.
-  if (!isOverlay && getTileOccupyingCell(col, row)) return;
+  if (!isOverlay && getBlockingTileOccupyingCell(col, row)) return;
 
   if (placementDefinition.spanRows > 1 &&
       row + placementDefinition.spanRows - 1 >= majorRows) {
@@ -524,7 +538,7 @@ workspace.addEventListener("click", event => {
   // Counter keeps earlier requested behavior:
   // if the lower cell contains an image, remove it before placing counter.
   if (placementDefinition.key === "counter") {
-    removeTileOccupyingCell(col, row + 1);
+    removeBlockingTileOccupyingCell(col, row + 1);
   }
 
   const image = document.createElement("img");
