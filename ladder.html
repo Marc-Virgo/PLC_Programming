@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.3</title>
+  <title>Ladder Logic — v1.4</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -94,16 +94,44 @@
   z-index: 1000 !important;
 }
 
+
+.selection-marquee {
+  position: absolute;
+  display: none;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 3px dashed #ffd400;
+  background: rgba(255, 212, 0, 0.08);
+  box-shadow:
+    0 0 6px rgba(255, 212, 0, 0.95),
+    0 0 14px rgba(255, 212, 0, 0.80),
+    inset 0 0 8px rgba(255, 212, 0, 0.35);
+  z-index: 2500;
+}
+.selection-marquee.invalid {
+  border-color: #ff3030;
+  background: rgba(255, 48, 48, 0.08);
+  box-shadow:
+    0 0 6px rgba(255, 48, 48, 0.95),
+    0 0 14px rgba(255, 48, 48, 0.80),
+    inset 0 0 8px rgba(255, 48, 48, 0.35);
+}
+.placed-tile.group-selected {
+  outline: 2px solid rgba(255, 212, 0, 0.95);
+  filter: drop-shadow(0 0 5px rgba(255, 212, 0, 0.9));
+}
+
 </style>
 </head>
 <body>
 <div class="app">
-<header class="topbar"><div class="title">Ladder Logic — v1.3</div>
+<header class="topbar"><div class="title">Ladder Logic — v1.4</div>
       <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button><button class="category-button editor-control hidden active" data-category="basic">Basic</button><button class="category-button editor-control hidden" data-category="math">Math</button><button class="category-button editor-control hidden" data-category="special">Special</button><label class="delete-control editor-control hidden"><input type="checkbox" id="deleteObjectMode" value="delete"><span>Delete Object</span></label><button class="file-button first" id="openButton" type="button">Open</button><button class="file-button" id="saveButton" type="button">Save</button><button class="file-button" id="saveAsButton" type="button">Save As</button><button class="add-rows-button" id="addRowsButton" type="button">Add 8 Rows</button><a class="home-button" href="index.html">Home</a></header>
 <main class="main">
 <aside class="palette"><h2 class="palette-heading" id="paletteHeading">Basic Blocks</h2><div class="tile-list" id="tileList"></div></aside>
 <section class="workspace-wrap"><div class="workspace-toolbar">Ladder workspace — <span id="rowCount">16 major rows</span></div><div class="workspace"><div class="ladder-canvas"><div class="rail left"></div>
-            <div id="cellHighlight" class="cell-highlight"></div></div></div></section>
+            <div id="cellHighlight" class="cell-highlight"></div>
+          <div id="selectionMarquee" class="selection-marquee"></div></div></div></section>
 </main>
 </div>
 <img id="placementPreview" class="placement-preview" alt="">
@@ -227,6 +255,7 @@ const addRowsButton = document.getElementById("addRowsButton");
 const rowCount = document.getElementById("rowCount");
 const placementPreview = document.getElementById("placementPreview");
 const cellHighlight = document.getElementById("cellHighlight");
+const selectionMarquee = document.getElementById("selectionMarquee");
 const openButton = document.getElementById("openButton");
 const saveButton = document.getElementById("saveButton");
 const saveAsButton = document.getElementById("saveAsButton");
@@ -246,6 +275,18 @@ let nextBlockId = 1;
 let currentFileHandle = null;
 let currentProgramName = "Untitled";
 let currentProgramRevision = 1;
+
+let marqueeSelecting = false;
+let marqueeStart = null;
+let marqueeEnd = null;
+let groupMoveActive = false;
+let groupMoveAnchor = null;
+let selectedGroup = [];
+let selectedOriginalPositions = [];
+let groupSelectionBounds = null;
+let groupMoveValid = false;
+let suppressNextWorkspaceClick = false;
+
 
 function resolveImage(path) {
   return new URL(path, window.location.href).href;
@@ -841,6 +882,256 @@ function bringVerticalShuntsToFront() {
   });
 }
 
+
+function eventToCanvasPoint(event) {
+  const rect = ladderCanvas.getBoundingClientRect();
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  };
+}
+
+function pointToMajorCell(point) {
+  return {
+    col: Math.floor(point.x / majorCellSize),
+    row: Math.floor(point.y / majorCellSize)
+  };
+}
+
+function setSelectionMarquee(left, top, width, height, invalid = false) {
+  selectionMarquee.style.left = left + "px";
+  selectionMarquee.style.top = top + "px";
+  selectionMarquee.style.width = width + "px";
+  selectionMarquee.style.height = height + "px";
+  selectionMarquee.style.display = "block";
+  selectionMarquee.classList.toggle("invalid", invalid);
+}
+
+function hideSelectionMarquee() {
+  selectionMarquee.style.display = "none";
+  selectionMarquee.classList.remove("invalid");
+}
+
+function clearSelectedGroupVisuals() {
+  selectedGroup.forEach(tile => tile.classList.remove("group-selected"));
+}
+
+function cancelGroupMove() {
+  clearSelectedGroupVisuals();
+  selectedGroup = [];
+  selectedOriginalPositions = [];
+  groupSelectionBounds = null;
+  groupMoveAnchor = null;
+  groupMoveActive = false;
+  groupMoveValid = false;
+  marqueeSelecting = false;
+  hideSelectionMarquee();
+}
+
+function getTileMajorBounds(tile) {
+  const col = parseInt(tile.dataset.majorColumn || "0", 10);
+  const row = parseInt(tile.dataset.majorRow || "0", 10);
+  const spanRows = parseInt(tile.dataset.spanRows || "1", 10);
+  return { left: col, right: col, top: row, bottom: row + spanRows - 1 };
+}
+
+function computeGroupBounds(tiles) {
+  if (!tiles.length) return null;
+  let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
+
+  tiles.forEach(tile => {
+    const b = getTileMajorBounds(tile);
+    left = Math.min(left, b.left);
+    right = Math.max(right, b.right);
+    top = Math.min(top, b.top);
+    bottom = Math.max(bottom, b.bottom);
+  });
+
+  return { left, right, top, bottom };
+}
+
+function getTilesIntersectingSelectionRect() {
+  const left = parseFloat(selectionMarquee.style.left) || 0;
+  const top = parseFloat(selectionMarquee.style.top) || 0;
+  const right = left + (parseFloat(selectionMarquee.style.width) || 0);
+  const bottom = top + (parseFloat(selectionMarquee.style.height) || 0);
+
+  return [...ladderCanvas.querySelectorAll(".placed-tile")].filter(tile => {
+    const tileLeft = tile.offsetLeft;
+    const tileTop = tile.offsetTop;
+    const tileRight = tileLeft + tile.offsetWidth;
+    const tileBottom = tileTop + tile.offsetHeight;
+
+    return tileRight >= left &&
+           tileLeft <= right &&
+           tileBottom >= top &&
+           tileTop <= bottom;
+  });
+}
+
+function beginGroupMoveFromSelection() {
+  const tiles = getTilesIntersectingSelectionRect();
+  if (!tiles.length) {
+    hideSelectionMarquee();
+    return;
+  }
+
+  selectedGroup = tiles;
+  selectedGroup.forEach(tile => tile.classList.add("group-selected"));
+
+  selectedOriginalPositions = selectedGroup.map(tile => ({
+    tile,
+    col: parseInt(tile.dataset.majorColumn || "0", 10),
+    row: parseInt(tile.dataset.majorRow || "0", 10)
+  }));
+
+  groupSelectionBounds = computeGroupBounds(selectedGroup);
+  groupMoveAnchor = {
+    col: groupSelectionBounds.left,
+    row: groupSelectionBounds.top
+  };
+  groupMoveActive = true;
+  updateGroupMoveMarquee(groupMoveAnchor.col, groupMoveAnchor.row);
+}
+
+function selectionContainsTile(tile) {
+  return selectedGroup.includes(tile);
+}
+
+function destinationAllowsGroup(deltaCol, deltaRow) {
+  if (!groupSelectionBounds) return false;
+
+  const left = groupSelectionBounds.left + deltaCol;
+  const right = groupSelectionBounds.right + deltaCol;
+  const top = groupSelectionBounds.top + deltaRow;
+  const bottom = groupSelectionBounds.bottom + deltaRow;
+
+  if (left < 0 || right >= majorColumns || top < 0 || bottom >= majorRows) {
+    return false;
+  }
+
+  const allTiles = [...ladderCanvas.querySelectorAll(".placed-tile")];
+
+  for (const original of selectedOriginalPositions) {
+    const tile = original.tile;
+    if (tile.dataset.overlay === "true") continue;
+
+    const newCol = original.col + deltaCol;
+    const newRow = original.row + deltaRow;
+    const spanRows = parseInt(tile.dataset.spanRows || "1", 10);
+
+    for (let row = newRow; row < newRow + spanRows; row++) {
+      const blocked = allTiles.some(other => {
+        if (selectionContainsTile(other)) return false;
+        if (other.dataset.overlay === "true") return false;
+
+        const otherCol = parseInt(other.dataset.majorColumn || "0", 10);
+        const otherRow = parseInt(other.dataset.majorRow || "0", 10);
+        const otherSpanRows = parseInt(other.dataset.spanRows || "1", 10);
+
+        return otherCol === newCol &&
+               row >= otherRow &&
+               row < otherRow + otherSpanRows;
+      });
+
+      if (blocked) return false;
+    }
+  }
+
+  return true;
+}
+
+function updateGroupMoveMarquee(targetCol, targetRow) {
+  if (!groupMoveActive || !groupSelectionBounds) return;
+
+  const deltaCol = targetCol - groupMoveAnchor.col;
+  const deltaRow = targetRow - groupMoveAnchor.row;
+
+  groupMoveValid = destinationAllowsGroup(deltaCol, deltaRow);
+
+  const left = (groupSelectionBounds.left + deltaCol) * majorCellSize;
+  const top = (groupSelectionBounds.top + deltaRow) * majorCellSize;
+  const width = (groupSelectionBounds.right - groupSelectionBounds.left + 1) * majorCellSize;
+  const height = (groupSelectionBounds.bottom - groupSelectionBounds.top + 1) * majorCellSize;
+
+  setSelectionMarquee(left, top, width, height, !groupMoveValid);
+}
+
+function commitGroupMove(targetCol, targetRow) {
+  if (!groupMoveActive || !groupMoveValid) return false;
+
+  const deltaCol = targetCol - groupMoveAnchor.col;
+  const deltaRow = targetRow - groupMoveAnchor.row;
+
+  selectedOriginalPositions.forEach(original => {
+    const tile = original.tile;
+    const newCol = original.col + deltaCol;
+    const newRow = original.row + deltaRow;
+    const definition = placeableDefinitions[tile.dataset.blockType];
+
+    tile.dataset.majorColumn = String(newCol);
+    tile.dataset.majorRow = String(newRow);
+    tile.style.left = (newCol * majorCellSize) + "px";
+    tile.style.top = (newRow * majorCellSize + (definition?.topOffset || 0)) + "px";
+  });
+
+  bringVerticalShuntsToFront();
+  cancelGroupMove();
+  return true;
+}
+
+function beginMarqueeSelection(event) {
+  if (!editorEnabled || placementDefinition || deleteMode || groupMoveActive) return;
+  if (event.button !== 0) return;
+
+  const point = eventToCanvasPoint(event);
+  if (point.x < 0 || point.y < 0 ||
+      point.x >= ladderCanvas.offsetWidth ||
+      point.y >= ladderCanvas.offsetHeight) {
+    return;
+  }
+
+  marqueeSelecting = true;
+  marqueeStart = point;
+  marqueeEnd = point;
+  setSelectionMarquee(point.x, point.y, 0, 0, false);
+}
+
+function updateMarqueeDrag(event) {
+  if (!marqueeSelecting) return;
+
+  const point = eventToCanvasPoint(event);
+  marqueeEnd = {
+    x: Math.max(0, Math.min(ladderCanvas.offsetWidth, point.x)),
+    y: Math.max(0, Math.min(ladderCanvas.offsetHeight, point.y))
+  };
+
+  const left = Math.min(marqueeStart.x, marqueeEnd.x);
+  const top = Math.min(marqueeStart.y, marqueeEnd.y);
+  const width = Math.abs(marqueeEnd.x - marqueeStart.x);
+  const height = Math.abs(marqueeEnd.y - marqueeStart.y);
+
+  setSelectionMarquee(left, top, width, height, false);
+}
+
+function finishMarqueeDrag(event) {
+  if (!marqueeSelecting) return;
+
+  updateMarqueeDrag(event);
+  marqueeSelecting = false;
+
+  const width = parseFloat(selectionMarquee.style.width) || 0;
+  const height = parseFloat(selectionMarquee.style.height) || 0;
+
+  if (width < 8 && height < 8) {
+    hideSelectionMarquee();
+    return;
+  }
+
+  suppressNextWorkspaceClick = true;
+  beginGroupMoveFromSelection();
+}
+
 function getTileOccupiedCells(tile) {
   const col = parseInt(tile.dataset.majorColumn || "0", 10);
   const row = parseInt(tile.dataset.majorRow || "0", 10);
@@ -928,6 +1219,10 @@ function showCellHighlight(col, row, mode) {
 }
 
 function updateHighlightForHoveredCell() {
+  if (marqueeSelecting || groupMoveActive) {
+    hideCellHighlight();
+    return;
+  }
   if (!editorEnabled || !hoveredCell) {
     hideCellHighlight();
     return;
@@ -984,7 +1279,21 @@ placementPreview.addEventListener("error", () => {
   console.error("Unable to load placement image:", placementPreview.src);
 });
 
+workspace.addEventListener("mousedown", event => {
+  beginMarqueeSelection(event);
+});
+
 workspace.addEventListener("mousemove", event => {
+  if (marqueeSelecting) {
+    updateMarqueeDrag(event);
+  }
+
+  if (groupMoveActive) {
+    const point = eventToCanvasPoint(event);
+    const cell = pointToMajorCell(point);
+    updateGroupMoveMarquee(cell.col, cell.row);
+  }
+
   if (placementMode) {
     placementPreview.style.left = event.clientX + "px";
     placementPreview.style.top = event.clientY + "px";
@@ -992,6 +1301,13 @@ workspace.addEventListener("mousemove", event => {
 
   hoveredCell = getCellFromMouse(event);
   updateHighlightForHoveredCell();
+});
+
+
+window.addEventListener("mouseup", event => {
+  if (event.button === 0 && marqueeSelecting) {
+    finishMarqueeDrag(event);
+  }
 });
 
 workspace.addEventListener("mouseenter", () => {
@@ -1008,6 +1324,22 @@ workspace.addEventListener("mouseleave", () => {
 });
 
 workspace.addEventListener("click", event => {
+  if (suppressNextWorkspaceClick) {
+    suppressNextWorkspaceClick = false;
+    return;
+  }
+
+  if (groupMoveActive) {
+    const point = eventToCanvasPoint(event);
+    const cell = pointToMajorCell(point);
+    updateGroupMoveMarquee(cell.col, cell.row);
+
+    if (groupMoveValid) {
+      commitGroupMove(cell.col, cell.row);
+    }
+    return;
+  }
+
   if (!editorEnabled) return;
 
   const cell = getCellFromMouse(event);
@@ -1096,6 +1428,12 @@ workspace.addEventListener("click", event => {
 });
 
 workspace.addEventListener("contextmenu", event => {
+  if (groupMoveActive || marqueeSelecting) {
+    event.preventDefault();
+    cancelGroupMove();
+    return;
+  }
+
   if (placementMode) {
     event.preventDefault();
     cancelPlacementMode();
