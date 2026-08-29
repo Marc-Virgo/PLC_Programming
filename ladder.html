@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.11</title>
+  <title>Ladder Logic — v1.12</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -145,8 +145,9 @@
 </head>
 <body>
 <div class="app">
-<header class="topbar"><div class="title">Ladder Logic — v1.11</div>
-      <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button><button class="category-button editor-control hidden active" data-category="basic">Basic</button><button class="category-button editor-control hidden" data-category="math">Math</button><button class="category-button editor-control hidden" data-category="special">Special</button><label class="delete-control editor-control hidden"><input type="checkbox" id="deleteObjectMode" value="delete"><span>Delete Object</span></label><button class="file-button first" id="openButton" type="button">Open</button><button class="file-button" id="saveButton" type="button">Save</button><button class="file-button" id="saveAsButton" type="button">Save As</button><button class="add-rows-button" id="addRowsButton" type="button">Add 8 Rows</button><a class="home-button" href="index.html">Home</a></header>
+<header class="topbar"><div class="title">Ladder Logic — v1.12</div>
+      <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button><button class="category-button editor-control hidden active" data-category="basic">Basic</button><button class="category-button editor-control hidden" data-category="math">Math</button><button class="category-button editor-control hidden" data-category="special">Special</button><label class="delete-control editor-control hidden"><input type="checkbox" id="deleteObjectMode" value="delete"><span>Delete Object</span></label>
+<label class="delete-object-control" id="copyObjectControl" style="display:none;"><input type="checkbox" id="copyObjectMode"> Copy Object</label><button class="file-button first" id="openButton" type="button">Open</button><button class="file-button" id="saveButton" type="button">Save</button><button class="file-button" id="saveAsButton" type="button">Save As</button><button class="add-rows-button" id="addRowsButton" type="button">Add 8 Rows</button><a class="home-button" href="index.html">Home</a></header>
 <main class="main">
 <aside class="palette"><h2 class="palette-heading" id="paletteHeading">Basic Blocks</h2><div class="tile-list" id="tileList"></div></aside>
 <section class="workspace-wrap"><div class="workspace-toolbar">Ladder workspace — <span id="rowCount">16 major rows</span></div><div class="workspace"><div class="ladder-canvas"><div class="rail left"></div>
@@ -269,6 +270,8 @@ const categoryButtons = [...document.querySelectorAll(".category-button")];
 const editorControls = [...document.querySelectorAll(".editor-control")];
 const editorToggleButton = document.getElementById("editorToggleButton");
 const deleteObjectMode = document.getElementById("deleteObjectMode");
+const copyObjectMode = document.getElementById("copyObjectMode");
+const copyObjectControl = document.getElementById("copyObjectControl");
 const ladderCanvas = document.querySelector(".ladder-canvas");
 const workspace = document.querySelector(".workspace");
 const addRowsButton = document.getElementById("addRowsButton");
@@ -288,6 +291,7 @@ let placementDefinition = null;
 let placementImage = null;
 let placementLabel = null;
 let deleteMode = false;
+let copyMode = false;
 let hoveredCell = null;
 
 // Offline program/file state.
@@ -863,6 +867,10 @@ deleteObjectMode.addEventListener("change", () => {
   }
 
   deleteMode = deleteObjectMode.checked;
+  if (deleteMode) {
+    copyObjectMode.checked = false;
+    copyMode = false;
+  }
 
   if (deleteMode) {
     cancelPlacementMode();
@@ -873,6 +881,24 @@ deleteObjectMode.addEventListener("change", () => {
     cancelDeleteMarquee();
   }
 });
+
+copyObjectMode.addEventListener("change", () => {
+  copyMode = copyObjectMode.checked;
+
+  if (copyMode) {
+    // Copy and Delete are mutually exclusive tools.
+    deleteObjectMode.checked = false;
+    deleteMode = false;
+    cancelPlacementMode();
+    cancelDeleteMarquee();
+    cancelGroupMove();
+  } else if (groupMoveActive) {
+    cancelGroupMove();
+  }
+
+  updateHighlightForHoveredCell();
+});
+
 
 function activatePlacementMode(blockName) {
   const definition = placeableDefinitions[blockName];
@@ -1250,6 +1276,48 @@ function updateGroupMovePreviewFromPointer(pointerPoint) {
     height,
     !groupMoveValid
   );
+}
+
+
+function commitGroupCopy() {
+  if (!groupMoveActive || !groupMoveValid || !groupSnapTarget) return false;
+
+  const deltaCol = groupSnapTarget.deltaCol;
+  const deltaRow = groupSnapTarget.deltaRow;
+
+  const newTiles = [];
+
+  selectedOriginalPositions.forEach(original => {
+    const source = original.tile;
+    const newCol = original.col + deltaCol;
+    const newRow = original.row + deltaRow;
+    const definition = placeableDefinitions[source.dataset.blockType];
+    const topOffset = definition?.topOffset || 0;
+
+    const placed = source.cloneNode(true);
+    placed.classList.remove("group-selected");
+    placed.dataset.blockId = String(nextBlockId++);
+    placed.dataset.majorColumn = String(newCol);
+    placed.dataset.majorRow = String(newRow);
+    placed.style.left = (newCol * majorCellSize) + "px";
+    placed.style.top = (newRow * majorCellSize + topOffset) + "px";
+
+    ladderCanvas.appendChild(placed);
+    newTiles.push(placed);
+  });
+
+  removeGroupGhosts();
+  selectedGroup = [];
+  selectedOriginalPositions = [];
+  groupSelectionBounds = null;
+  groupMoveAnchor = null;
+  groupSnapTarget = null;
+  groupMoveActive = false;
+  groupMoveValid = false;
+  hideSelectionMarquee();
+
+  bringVerticalShuntsToFront();
+  return true;
 }
 
 function commitGroupMove() {
@@ -1661,7 +1729,11 @@ workspace.addEventListener("click", event => {
     updateGroupMovePreviewFromPointer(point);
 
     if (groupMoveValid) {
-      commitGroupMove();
+      if (copyMode) {
+        commitGroupCopy();
+      } else {
+        commitGroupMove();
+      }
     }
     return;
   }
