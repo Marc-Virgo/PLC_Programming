@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.7</title>
+  <title>Ladder Logic — v1.8</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -135,7 +135,7 @@
 </head>
 <body>
 <div class="app">
-<header class="topbar"><div class="title">Ladder Logic — v1.7</div>
+<header class="topbar"><div class="title">Ladder Logic — v1.8</div>
       <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button><button class="category-button editor-control hidden active" data-category="basic">Basic</button><button class="category-button editor-control hidden" data-category="math">Math</button><button class="category-button editor-control hidden" data-category="special">Special</button><label class="delete-control editor-control hidden"><input type="checkbox" id="deleteObjectMode" value="delete"><span>Delete Object</span></label><button class="file-button first" id="openButton" type="button">Open</button><button class="file-button" id="saveButton" type="button">Save</button><button class="file-button" id="saveAsButton" type="button">Save As</button><button class="add-rows-button" id="addRowsButton" type="button">Add 8 Rows</button><a class="home-button" href="index.html">Home</a></header>
 <main class="main">
 <aside class="palette"><h2 class="palette-heading" id="paletteHeading">Basic Blocks</h2><div class="tile-list" id="tileList"></div></aside>
@@ -1024,14 +1024,9 @@ function beginGroupMoveFromSelection(releasePoint) {
 
   groupSelectionBounds = computeGroupBounds(selectedGroup);
 
-  const groupOriginX = groupSelectionBounds.left * majorCellSize;
-  const groupOriginY = groupSelectionBounds.top * majorCellSize;
-
-  // Preserve the exact pointer position inside the selected group in pixels.
-  groupPointerOffsetPx = {
-    x: releasePoint.x - groupOriginX,
-    y: releasePoint.y - groupOriginY
-  };
+  // The mouse cell becomes the placement anchor after selection, so no
+  // selection-release offset is used for drop validation.
+  groupPointerOffsetPx = { x: 0, y: 0 };
 
   groupMoveAnchor = {
     col: groupSelectionBounds.left,
@@ -1097,13 +1092,10 @@ function destinationAllowsGroup(deltaCol, deltaRow) {
 function getSnappedGroupTarget(pointerPoint) {
   if (!groupSelectionBounds) return null;
 
-  // The pointer continuously carries the group, while the drop target is
-  // snapped to the nearest major-cell origin.
-  const rawLeft = pointerPoint.x - groupPointerOffsetPx.x;
-  const rawTop = pointerPoint.y - groupPointerOffsetPx.y;
-
-  const targetLeftCol = Math.round(rawLeft / majorCellSize);
-  const targetTopRow = Math.round(rawTop / majorCellSize);
+  // The major cell currently under the mouse is the anchor cell for the
+  // upper-left corner of the selected group.
+  const targetLeftCol = Math.floor(pointerPoint.x / majorCellSize);
+  const targetTopRow = Math.floor(pointerPoint.y / majorCellSize);
 
   return {
     leftCol: targetLeftCol,
@@ -1116,16 +1108,15 @@ function getSnappedGroupTarget(pointerPoint) {
 function updateGroupMovePreviewFromPointer(pointerPoint) {
   if (!groupMoveActive || !groupSelectionBounds) return;
 
-  const visualGroupLeft =
-    pointerPoint.x - groupPointerOffsetPx.x + groupGhostVisualOffsetPx.x;
-  const visualGroupTop =
-    pointerPoint.y - groupPointerOffsetPx.y + groupGhostVisualOffsetPx.y;
+  // The ghost group follows the mouse smoothly. The mouse position represents
+  // the group's anchor area, while actual placement validation snaps that
+  // anchor to the major cell under the pointer.
+  const visualGroupLeft = pointerPoint.x + groupGhostVisualOffsetPx.x;
+  const visualGroupTop = pointerPoint.y + groupGhostVisualOffsetPx.y;
 
   const originalGroupLeft = groupSelectionBounds.left * majorCellSize;
   const originalGroupTop = groupSelectionBounds.top * majorCellSize;
 
-  // Ghost images move continuously with the pointer, preserving their exact
-  // pixel relationship to one another.
   groupGhosts.forEach(({ ghost, original }) => {
     const originalLeft = original.col * majorCellSize;
     const definition = placeableDefinitions[original.tile.dataset.blockType];
@@ -1145,6 +1136,10 @@ function updateGroupMovePreviewFromPointer(pointerPoint) {
     return;
   }
 
+  // Yellow means the entire selection can be placed with its upper-left
+  // anchor in the major cell under the mouse. Red means at least one selected
+  // block would overlap an existing non-selected block or any portion of the
+  // selection would extend beyond the ladder grid.
   groupMoveValid = destinationAllowsGroup(
     groupSnapTarget.deltaCol,
     groupSnapTarget.deltaRow
