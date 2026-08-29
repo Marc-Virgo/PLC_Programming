@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.4</title>
+  <title>Ladder Logic — v1.5</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -116,16 +116,26 @@
     0 0 14px rgba(255, 48, 48, 0.80),
     inset 0 0 8px rgba(255, 48, 48, 0.35);
 }
-.placed-tile.group-selected {
-  outline: 2px solid rgba(255, 212, 0, 0.95);
-  filter: drop-shadow(0 0 5px rgba(255, 212, 0, 0.9));
+.group-move-ghost {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2400;
+  filter:
+    drop-shadow(0 0 4px rgba(255, 212, 0, 1))
+    drop-shadow(0 0 10px rgba(255, 212, 0, 0.9));
+}
+.group-move-ghost.invalid {
+  filter:
+    drop-shadow(0 0 4px rgba(255, 48, 48, 1))
+    drop-shadow(0 0 10px rgba(255, 48, 48, 0.9));
 }
 
 </style>
 </head>
 <body>
 <div class="app">
-<header class="topbar"><div class="title">Ladder Logic — v1.4</div>
+<header class="topbar"><div class="title">Ladder Logic — v1.5</div>
       <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button><button class="category-button editor-control hidden active" data-category="basic">Basic</button><button class="category-button editor-control hidden" data-category="math">Math</button><button class="category-button editor-control hidden" data-category="special">Special</button><label class="delete-control editor-control hidden"><input type="checkbox" id="deleteObjectMode" value="delete"><span>Delete Object</span></label><button class="file-button first" id="openButton" type="button">Open</button><button class="file-button" id="saveButton" type="button">Save</button><button class="file-button" id="saveAsButton" type="button">Save As</button><button class="add-rows-button" id="addRowsButton" type="button">Add 8 Rows</button><a class="home-button" href="index.html">Home</a></header>
 <main class="main">
 <aside class="palette"><h2 class="palette-heading" id="paletteHeading">Basic Blocks</h2><div class="tile-list" id="tileList"></div></aside>
@@ -283,6 +293,7 @@ let groupMoveActive = false;
 let groupMoveAnchor = null;
 let selectedGroup = [];
 let selectedOriginalPositions = [];
+let groupGhosts = [];
 let groupSelectionBounds = null;
 let groupMoveValid = false;
 let suppressNextWorkspaceClick = false;
@@ -912,12 +923,14 @@ function hideSelectionMarquee() {
   selectionMarquee.classList.remove("invalid");
 }
 
-function clearSelectedGroupVisuals() {
-  selectedGroup.forEach(tile => tile.classList.remove("group-selected"));
+
+function removeGroupGhosts() {
+  groupGhosts.forEach(item => item.ghost.remove());
+  groupGhosts = [];
 }
 
 function cancelGroupMove() {
-  clearSelectedGroupVisuals();
+  removeGroupGhosts();
   selectedGroup = [];
   selectedOriginalPositions = [];
   groupSelectionBounds = null;
@@ -969,6 +982,26 @@ function getTilesIntersectingSelectionRect() {
   });
 }
 
+function createGroupGhosts() {
+  removeGroupGhosts();
+
+  groupGhosts = selectedOriginalPositions.map(original => {
+    const ghost = original.tile.cloneNode(true);
+    ghost.classList.remove("placed-tile", "vertical-shunt", "group-selected");
+    ghost.classList.add("group-move-ghost");
+
+    // Ghosts are visual only: they do not participate in save, occupancy,
+    // deletion, or normal ladder-block queries.
+    ghost.removeAttribute("id");
+    ghost.style.left = (original.col * majorCellSize) + "px";
+    ghost.style.top = original.tile.style.top;
+    ghost.style.zIndex = "2400";
+
+    ladderCanvas.appendChild(ghost);
+    return { ghost, original };
+  });
+}
+
 function beginGroupMoveFromSelection() {
   const tiles = getTilesIntersectingSelectionRect();
   if (!tiles.length) {
@@ -977,8 +1010,6 @@ function beginGroupMoveFromSelection() {
   }
 
   selectedGroup = tiles;
-  selectedGroup.forEach(tile => tile.classList.add("group-selected"));
-
   selectedOriginalPositions = selectedGroup.map(tile => ({
     tile,
     col: parseInt(tile.dataset.majorColumn || "0", 10),
@@ -990,8 +1021,11 @@ function beginGroupMoveFromSelection() {
     col: groupSelectionBounds.left,
     row: groupSelectionBounds.top
   };
+
   groupMoveActive = true;
-  updateGroupMoveMarquee(groupMoveAnchor.col, groupMoveAnchor.row);
+  createGroupGhosts();
+  hideSelectionMarquee();
+  updateGroupMovePreview(groupMoveAnchor.col, groupMoveAnchor.row);
 }
 
 function selectionContainsTile(tile) {
@@ -1041,13 +1075,24 @@ function destinationAllowsGroup(deltaCol, deltaRow) {
   return true;
 }
 
-function updateGroupMoveMarquee(targetCol, targetRow) {
+function updateGroupMovePreview(targetCol, targetRow) {
   if (!groupMoveActive || !groupSelectionBounds) return;
 
   const deltaCol = targetCol - groupMoveAnchor.col;
   const deltaRow = targetRow - groupMoveAnchor.row;
 
   groupMoveValid = destinationAllowsGroup(deltaCol, deltaRow);
+
+  groupGhosts.forEach(({ ghost, original }) => {
+    const newCol = original.col + deltaCol;
+    const newRow = original.row + deltaRow;
+    const definition = placeableDefinitions[original.tile.dataset.blockType];
+    const topOffset = definition?.topOffset || 0;
+
+    ghost.style.left = (newCol * majorCellSize) + "px";
+    ghost.style.top = (newRow * majorCellSize + topOffset) + "px";
+    ghost.classList.toggle("invalid", !groupMoveValid);
+  });
 
   const left = (groupSelectionBounds.left + deltaCol) * majorCellSize;
   const top = (groupSelectionBounds.top + deltaRow) * majorCellSize;
@@ -1063,20 +1108,40 @@ function commitGroupMove(targetCol, targetRow) {
   const deltaCol = targetCol - groupMoveAnchor.col;
   const deltaRow = targetRow - groupMoveAnchor.row;
 
-  selectedOriginalPositions.forEach(original => {
-    const tile = original.tile;
+  // Convert the visual copies into the new real blocks, preserving all
+  // serialized block metadata and persistent IDs.
+  const committedTiles = [];
+
+  groupGhosts.forEach(({ ghost, original }) => {
+    const source = original.tile;
     const newCol = original.col + deltaCol;
     const newRow = original.row + deltaRow;
-    const definition = placeableDefinitions[tile.dataset.blockType];
+    const definition = placeableDefinitions[source.dataset.blockType];
+    const topOffset = definition?.topOffset || 0;
 
-    tile.dataset.majorColumn = String(newCol);
-    tile.dataset.majorRow = String(newRow);
-    tile.style.left = (newCol * majorCellSize) + "px";
-    tile.style.top = (newRow * majorCellSize + (definition?.topOffset || 0)) + "px";
+    const placed = source.cloneNode(true);
+    placed.classList.remove("group-selected");
+    placed.style.left = (newCol * majorCellSize) + "px";
+    placed.style.top = (newRow * majorCellSize + topOffset) + "px";
+    placed.dataset.majorColumn = String(newCol);
+    placed.dataset.majorRow = String(newRow);
+
+    source.remove();
+    ghost.remove();
+    ladderCanvas.appendChild(placed);
+    committedTiles.push(placed);
   });
 
+  groupGhosts = [];
+  selectedGroup = [];
+  selectedOriginalPositions = [];
+  groupSelectionBounds = null;
+  groupMoveAnchor = null;
+  groupMoveActive = false;
+  groupMoveValid = false;
+  hideSelectionMarquee();
+
   bringVerticalShuntsToFront();
-  cancelGroupMove();
   return true;
 }
 
@@ -1291,7 +1356,7 @@ workspace.addEventListener("mousemove", event => {
   if (groupMoveActive) {
     const point = eventToCanvasPoint(event);
     const cell = pointToMajorCell(point);
-    updateGroupMoveMarquee(cell.col, cell.row);
+    updateGroupMovePreview(cell.col, cell.row);
   }
 
   if (placementMode) {
@@ -1332,7 +1397,7 @@ workspace.addEventListener("click", event => {
   if (groupMoveActive) {
     const point = eventToCanvasPoint(event);
     const cell = pointToMajorCell(point);
-    updateGroupMoveMarquee(cell.col, cell.row);
+    updateGroupMovePreview(cell.col, cell.row);
 
     if (groupMoveValid) {
       commitGroupMove(cell.col, cell.row);
