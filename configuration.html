@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.2</title>
+<title>PLC Configuration v1.3</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
@@ -16,7 +16,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </style>
 </head>
 <body>
-<header><h1 id="pageHeading">PLC Configuration v1.2</h1></header>
+<header><h1 id="pageHeading">PLC Configuration v1.3</h1></header>
 <main>
 <nav class="tabs" aria-label="PLC configuration sections">
 <button class="tab-button active" type="button" data-tab="hardware">Hardware</button>
@@ -62,7 +62,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 <tbody id="digitalBody"></tbody>
 </table>
 </div>
-<p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Not Used. A point cannot be marked Used until a descriptor has been entered.</p>
+<p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Not Used. A point cannot be marked Used until a descriptor has been entered. Pico functions other than ordinary Input or Output use Logical Point <strong>n/a</strong> but may still be marked Used.</p>
 </section>
 </div>
 
@@ -81,7 +81,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.2';
+const CONFIG_VERSION='1.3';
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
 document.getElementById('pageHeading').textContent=`PLC Configuration v${CONFIG_VERSION}`;
 
@@ -128,8 +128,11 @@ function picoFunctions(pin){
  return ['Output','Input','PWM Output',...(picoAlternateFunctions[pin]||[])];
 }
 function classifyFunction(fn){
- if(fn==='Input' || /^ADC[0-2]$/.test(fn)) return 'I';
- if(fn==='Output' || fn==='PWM Output') return 'O';
+ // Only ordinary digital Input/Output functions receive sequential PLC logical points.
+ // Alternate Pico peripheral functions (PWM, I2C, SPI, UART, ADC, etc.) are configured
+ // resources but are not assigned I:/O: logical point numbers here.
+ if(fn==='Input') return 'I';
+ if(fn==='Output') return 'O';
  return '';
 }
 function stateKey(resource,pin){return `${resource}|${pin}`;}
@@ -153,16 +156,21 @@ function appendIORow(resource,pin,kind){
  const logical=document.createElement('td');logical.className='logical';logical.textContent='—';
  const resourceTd=document.createElement('td');resourceTd.className='resource';resourceTd.textContent=resource;
  const pinTd=document.createElement('td');pinTd.className='pin';pinTd.textContent=pin;
- const functionTd=document.createElement('td');functionTd.appendChild(makeFunctionSelect(resource,pin,kind,state));
+ const functionTd=document.createElement('td');
+ const functionSelect=makeFunctionSelect(resource,pin,kind,state);
+ functionTd.appendChild(functionSelect);
  const descriptorTd=document.createElement('td');
  const descriptor=document.createElement('input');descriptor.type='text';descriptor.placeholder='Enter description';descriptor.value=state.descriptor||'';
  const activeTd=document.createElement('td');
  const active=document.createElement('select');active.innerHTML='<option value="not_used">Not Used</option><option value="used">Used</option>';active.value=state.active||'not_used';
  function syncActiveAvailability(){
-   const ready=descriptor.value.trim().length>0 && classifyFunction(state.function)!=='';
+   // Any selected function may be activated once the student supplies a descriptor.
+   // Non-digital Pico functions remain valid configured resources, but their Logical Point is N/A.
+   const ready=descriptor.value.trim().length>0;
    active.disabled=!ready;
    if(!ready){active.value='not_used';state.active='not_used';}
  }
+ functionSelect.addEventListener('change',()=>{syncActiveAvailability();renumberLogicalPoints();});
  descriptor.addEventListener('input',()=>{state.descriptor=descriptor.value;syncActiveAvailability();renumberLogicalPoints();});
  active.addEventListener('change',()=>{state.active=active.value;renumberLogicalPoints();});
  descriptorTd.appendChild(descriptor);activeTd.appendChild(active);
@@ -184,8 +192,9 @@ function renumberLogicalPoints(){
    const state=ioState[tr.dataset.key];
    const logical=tr.cells[0];
    const cls=classifyFunction(state.function);
-   if(state.active==='used' && cls==='I') logical.textContent=`I:${String(i++).padStart(3,'0')}`;
-   else if(state.active==='used' && cls==='O') logical.textContent=`O:${String(o++).padStart(3,'0')}`;
+   if(cls==='I' && state.active==='used') logical.textContent=`I:${String(i++).padStart(3,'0')}`;
+   else if(cls==='O' && state.active==='used') logical.textContent=`O:${String(o++).padStart(3,'0')}`;
+   else if(cls==='') logical.textContent='n/a';
    else logical.textContent='—';
  });
 }
