@@ -2,20 +2,29 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration</title>
+<title>PLC Configuration v1.1</title>
 <style>
-body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}
-main{width:min(94vw,900px);margin:28px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
-select{width:100%;max-width:420px;padding:10px;margin-top:8px}.device-list{display:grid;gap:10px;margin-top:16px}
-.device-row{display:grid;grid-template-columns:42px 1fr 100px;gap:10px;align-items:center;border:1px solid #d1d5db;border-radius:10px;padding:12px}
-.device-row.enabled{border-color:#111827;background:#f9fafb}.address{font-family:Consolas,monospace;text-align:right;font-weight:700}
+body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
+main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
+select,input[type=text]{box-sizing:border-box;padding:9px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#111827}select{width:100%;max-width:420px;margin-top:8px}.device-list{display:grid;gap:10px;margin-top:16px}
+.device-row{display:grid;grid-template-columns:42px 1fr 100px;gap:10px;align-items:center;border:1px solid #d1d5db;border-radius:10px;padding:12px}.device-row.enabled{border-color:#111827;background:#f9fafb}.address{font-family:Consolas,monospace;text-align:right;font-weight:700}
 .summary{margin-top:16px;padding:14px;background:#eef2ff;border-radius:10px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
-button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;color:white;font-size:1rem;font-weight:700;text-decoration:none;cursor:pointer}
+button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;color:white;font-size:1rem;font-weight:700;text-decoration:none;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid #cbd5e1;margin-bottom:20px}.tab-button{border-radius:9px 9px 0 0;background:#e5e7eb;color:#111827;padding:11px 20px}.tab-button.active{background:#111827;color:#fff}.tab-panel{display:none}.tab-panel.active{display:block}
+.table-wrap{overflow-x:auto}.io-table{width:100%;border-collapse:collapse;min-width:920px}.io-table th,.io-table td{border:1px solid #d1d5db;padding:8px;vertical-align:middle}.io-table th{background:#e5e7eb;text-align:left;white-space:nowrap}.io-table tbody tr:nth-child(even){background:#f9fafb}.io-table input[type=text]{width:100%;min-width:190px}.io-table select{margin:0;min-width:130px;max-width:none}.logical{font-family:Consolas,monospace;font-weight:700;white-space:nowrap}.resource{font-weight:700;white-space:nowrap}.pin{font-family:Consolas,monospace;white-space:nowrap}.status-note{font-size:.9rem;color:#4b5563;margin-top:10px}.placeholder{border:2px dashed #cbd5e1;border-radius:10px;padding:22px;background:#f8fafc}
+@media(max-width:650px){header{padding:14px 16px}header h1{font-size:1.35rem}main{margin:14px auto}.card{padding:16px}.tab-button{flex:1 1 30%;padding:10px 8px;font-size:.92rem}}
 </style>
 </head>
 <body>
-<header><h1>PLC Configuration</h1></header>
+<header><h1 id="pageHeading">PLC Configuration v1.1</h1></header>
 <main>
+<nav class="tabs" aria-label="PLC configuration sections">
+<button class="tab-button active" type="button" data-tab="hardware">Hardware</button>
+<button class="tab-button" type="button" data-tab="digital">Digital I/O</button>
+<button class="tab-button" type="button" data-tab="analog">Analog I/O</button>
+</nav>
+
+<div id="hardware" class="tab-panel active">
 <section class="card">
 <h2>Raspberry Pi Pico</h2>
 <label for="picoType">Pico model</label><br>
@@ -40,21 +49,128 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 <label class="device-row"><input type="checkbox" class="mcp" data-address="0x27"><span>MCP23017 I/O Expander 8</span><span class="address">0x27</span></label>
 </div>
 <div class="summary" id="summary">Enabled MCP23017 devices: 0<br>Expansion I/O points available: 0</div>
+</section>
+</div>
+
+<div id="digital" class="tab-panel">
+<section class="card">
+<h2>Digital I/O Table</h2>
+<p>The Pico GPIO points are listed first. Enabled MCP23017 expansion points are added automatically below them. Choose the required function, enter a descriptor, then mark the point as <strong>Used</strong>. Logical input and output numbers are assigned sequentially as <strong>I:</strong> and <strong>O:</strong>.</p>
+<div class="table-wrap">
+<table class="io-table">
+<thead><tr><th>Logical Point</th><th>Physical Resource</th><th>Pin</th><th>Function</th><th>Descriptor</th><th>Active</th></tr></thead>
+<tbody id="digitalBody"></tbody>
+</table>
+</div>
+<p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Not Used. A point cannot be marked Used until a descriptor has been entered.</p>
+</section>
+</div>
+
+<div id="analog" class="tab-panel">
+<section class="card">
+<h2>Analog I/O</h2>
+<div class="placeholder">
+<p><strong>Analog I/O configuration is reserved in this version.</strong></p>
+<p>Pico ADC-capable GPIO and PWM-capable outputs will be organized here separately from ordinary digital I/O. Hardware selected on the Hardware tab will provide the available analog resources.</p>
+</div>
+</section>
+</div>
+
+<section class="card">
 <div class="actions"><button id="saveButton">Save Configuration</button><a class="btn" href="index.html">Return Home</a></div>
 </section>
 </main>
 <script>
+const CONFIG_VERSION='1.1';
+document.title=`PLC Configuration v${CONFIG_VERSION}`;
+document.getElementById('pageHeading').textContent=`PLC Configuration v${CONFIG_VERSION}`;
+
 const picoType=document.getElementById('picoType');
 const devices=[...document.querySelectorAll('.mcp')];
 const summary=document.getElementById('summary');
+const digitalBody=document.getElementById('digitalBody');
+const tabs=[...document.querySelectorAll('.tab-button')];
+const panels=[...document.querySelectorAll('.tab-panel')];
+let ioState={};
 
+const picoPins=[...Array(23).keys(),26,27,28].map(n=>`GP${n}`);
+function picoFunctions(pin){
+ const n=Number(pin.slice(2));
+ const options=['Output','Input','PWM Output','I2C SDA','I2C SCL','UART TX','UART RX'];
+ if([26,27,28].includes(n)) options.push('ADC Input');
+ return options;
+}
+function classifyFunction(fn){
+ if(fn==='Input') return 'I';
+ if(fn==='ADC Input') return 'I';
+ if(['Output','PWM Output'].includes(fn)) return 'O';
+ return '';
+}
+function stateKey(resource,pin){return `${resource}|${pin}`;}
+function ensureState(resource,pin,kind){
+ const key=stateKey(resource,pin);
+ if(!ioState[key]) ioState[key]={function:'Output',descriptor:'',active:'not_used',kind};
+ return ioState[key];
+}
+function makeFunctionSelect(resource,pin,kind,state){
+ const sel=document.createElement('select');
+ const choices=kind==='pico'?picoFunctions(pin):['Output','Input'];
+ choices.forEach(fn=>{const o=document.createElement('option');o.value=fn;o.textContent=fn;sel.appendChild(o);});
+ if(choices.includes(state.function))sel.value=state.function;else state.function=choices[0];
+ sel.addEventListener('change',()=>{state.function=sel.value;renumberLogicalPoints();});
+ return sel;
+}
+function appendIORow(resource,pin,kind){
+ const state=ensureState(resource,pin,kind);
+ const tr=document.createElement('tr');
+ tr.dataset.key=stateKey(resource,pin);
+ const logical=document.createElement('td');logical.className='logical';logical.textContent='—';
+ const resourceTd=document.createElement('td');resourceTd.className='resource';resourceTd.textContent=resource;
+ const pinTd=document.createElement('td');pinTd.className='pin';pinTd.textContent=pin;
+ const functionTd=document.createElement('td');functionTd.appendChild(makeFunctionSelect(resource,pin,kind,state));
+ const descriptorTd=document.createElement('td');
+ const descriptor=document.createElement('input');descriptor.type='text';descriptor.placeholder='Enter description';descriptor.value=state.descriptor||'';
+ const activeTd=document.createElement('td');
+ const active=document.createElement('select');active.innerHTML='<option value="not_used">Not Used</option><option value="used">Used</option>';active.value=state.active||'not_used';
+ function syncActiveAvailability(){
+   const ready=descriptor.value.trim().length>0 && classifyFunction(state.function)!=='';
+   active.disabled=!ready;
+   if(!ready){active.value='not_used';state.active='not_used';}
+ }
+ descriptor.addEventListener('input',()=>{state.descriptor=descriptor.value;syncActiveAvailability();renumberLogicalPoints();});
+ active.addEventListener('change',()=>{state.active=active.value;renumberLogicalPoints();});
+ descriptorTd.appendChild(descriptor);activeTd.appendChild(active);
+ tr.append(logical,resourceTd,pinTd,functionTd,descriptorTd,activeTd);digitalBody.appendChild(tr);
+ syncActiveAvailability();
+}
+function rebuildDigitalTable(){
+ digitalBody.innerHTML='';
+ picoPins.forEach(pin=>appendIORow('Raspberry Pi Pico',pin,'pico'));
+ devices.filter(d=>d.checked).forEach(d=>{
+   const resource=`MCP23017 @ ${d.dataset.address}`;
+   ['GPA0','GPA1','GPA2','GPA3','GPA4','GPA5','GPA6','GPA7','GPB0','GPB1','GPB2','GPB3','GPB4','GPB5','GPB6','GPB7'].forEach(pin=>appendIORow(resource,pin,'mcp'));
+ });
+ renumberLogicalPoints();
+}
+function renumberLogicalPoints(){
+ let i=1,o=1;
+ [...digitalBody.rows].forEach(tr=>{
+   const state=ioState[tr.dataset.key];
+   const logical=tr.cells[0];
+   const cls=classifyFunction(state.function);
+   if(state.active==='used' && cls==='I') logical.textContent=`I:${String(i++).padStart(3,'0')}`;
+   else if(state.active==='used' && cls==='O') logical.textContent=`O:${String(o++).padStart(3,'0')}`;
+   else logical.textContent='—';
+ });
+}
 function updateSummary(){
  const enabled=devices.filter(d=>d.checked);
  devices.forEach(d=>d.closest('.device-row').classList.toggle('enabled',d.checked));
  summary.innerHTML=`Enabled MCP23017 devices: ${enabled.length}<br>Expansion I/O points available: ${enabled.length*16}`;
+ rebuildDigitalTable();
 }
 function saveConfiguration(){
- const config={picoType:picoType.value,i2cDevices:devices.filter(d=>d.checked).map(d=>({type:'MCP23017',address:d.dataset.address}))};
+ const config={version:CONFIG_VERSION,picoType:picoType.value,i2cDevices:devices.filter(d=>d.checked).map(d=>({type:'MCP23017',address:d.dataset.address})),ioState};
  localStorage.setItem('picoPLCConfiguration',JSON.stringify(config));
  alert('PLC configuration saved in this browser.');
 }
@@ -66,10 +182,15 @@ function loadConfiguration(){
    if(config.picoType)picoType.value=config.picoType;
    const enabled=new Set((config.i2cDevices||[]).map(x=>x.address));
    devices.forEach(d=>d.checked=enabled.has(d.dataset.address));
+   if(config.ioState && typeof config.ioState==='object')ioState=config.ioState;
   }catch(e){}
  }
  updateSummary();
 }
+tabs.forEach(btn=>btn.addEventListener('click',()=>{
+ tabs.forEach(b=>b.classList.toggle('active',b===btn));
+ panels.forEach(p=>p.classList.toggle('active',p.id===btn.dataset.tab));
+}));
 devices.forEach(d=>d.addEventListener('change',updateSummary));
 document.getElementById('saveButton').addEventListener('click',saveConfiguration);
 loadConfiguration();
