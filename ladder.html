@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.26</title>
+  <title>Ladder Logic — v1.27</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -247,7 +247,7 @@
 <body>
 <div class="app">
 <header class="topbar">
-  <div class="title">Ladder Logic — v1.26</div>
+  <div class="title">Ladder Logic — v1.27</div>
 
   <div class="ribbon-main-controls">
     <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button>
@@ -880,7 +880,7 @@ function jsonTextForCurrentProgram() {
   return JSON.stringify(buildProgramObject(), null, 2) + "\n";
 }
 
-// v1.24 optimizer ---------------------------------------------------------
+// v1.27 optimizer ---------------------------------------------------------
 // Converts editor geometry into a compact, output-first expression stream.
 // Internal/compiler opcodes: 48 AND, 49 OR, 50 NOT.
 const optimizerOpcodes = {
@@ -918,6 +918,7 @@ function optimizerExprKey(expr) {
   if (!expr) return "null";
   switch (expr.kind) {
     case "true": return "T";
+    case "false": return "F0";
     case "block": return `B:${expr.opcode}:${expr.id}:${JSON.stringify(expr.binding)}`;
     case "not": return `N:${expr.sourceId}:${JSON.stringify(expr.binding)}`;
     case "function": return `F:${expr.opcode}:${expr.id}:${JSON.stringify(expr.params)}:[${expr.inputs.map(optimizerExprKey).join("|")}]`;
@@ -1043,7 +1044,7 @@ function buildOptimizedProgram(program = buildProgramObject()) {
       continue;
     }
 
-    if (block.type === "timer" || block.type === "counter") {
+    if (["timer", "counter", "add", "subtract", "multiply", "divide"].includes(block.type)) {
       functionBlocks.push(block);
       ordinaryByCell.set(cellKey(block.position.row, block.position.col), block);
       continue;
@@ -1064,17 +1065,21 @@ function buildOptimizedProgram(program = buildProgramObject()) {
       let block = ordinaryByCell.get(cellKey(row, col));
       let outputSelector = 0;
 
-      // A two-row Timer/Counter supplies normal output on its upper row and
-      // complementary output on its lower row.
+      // Multi-row function blocks can expose Boolean outputs on more than
+      // one major row. Timer/Counter use upper=normal, lower=complementary;
+      // SUB and DIV expose three output rows. ADD/MULT only expose the upper row.
       if (!block) {
-        const spanning = functionBlocks.find(fn =>
-          fn.position.col === col &&
-          row === fn.position.row + 1 &&
-          (fn.geometry?.spanRows || 2) >= 2
-        );
+        const spanning = functionBlocks.find(fn => {
+          if (fn.position.col !== col) return false;
+          const relativeRow = row - fn.position.row;
+          if (relativeRow <= 0) return false;
+          if (fn.type === "timer" || fn.type === "counter") return relativeRow === 1;
+          if (fn.type === "subtract" || fn.type === "divide") return relativeRow === 1 || relativeRow === 2;
+          return false;
+        });
         if (spanning) {
           block = spanning;
-          outputSelector = 1;
+          outputSelector = row - spanning.position.row;
         }
       }
 
@@ -1130,14 +1135,89 @@ function buildOptimizedProgram(program = buildProgramObject()) {
           break;
         }
 
+        case "add": {
+          // ADD executes continuously while its single upper Boolean input is
+          // TRUE and mirrors that Boolean state to its single upper output.
+          if (outputSelector !== 0 || !prior) break;
+          rawNext[row] = {
+            kind: "function",
+            opcode: optimizerOpcodes.add,
+            id: block.id,
+            params: [
+              block.properties?.addend1 ?? null,
+              block.properties?.addend2 ?? null,
+              block.properties?.result ?? null
+            ],
+            inputs: [prior]
+          };
+          break;
+        }
+
+        case "multiply": {
+          // MULT has the same Boolean rung structure as ADD.
+          if (outputSelector !== 0 || !prior) break;
+          rawNext[row] = {
+            kind: "function",
+            opcode: optimizerOpcodes.multiply,
+            id: block.id,
+            params: [
+              block.properties?.multiplicand ?? null,
+              block.properties?.multiplier ?? null,
+              block.properties?.result ?? null
+            ],
+            inputs: [prior]
+          };
+          break;
+        }
+
+        case "subtract": {
+          // SUB has one upper Boolean input and three Boolean outputs:
+          // 0 => Greater Than (>), 1 => Positive/Equal (+), 2 => Less Than (<).
+          const enableExpr = boundary[block.position.row];
+          if (!enableExpr) break;
+          rawNext[row] = {
+            kind: "function",
+            opcode: optimizerOpcodes.subtract,
+            id: block.id,
+            params: [
+              block.properties?.minuend ?? null,
+              block.properties?.subtrahend ?? null,
+              block.properties?.result ?? null,
+              outputSelector
+            ],
+            inputs: [enableExpr]
+          };
+          break;
+        }
+
+        case "divide": {
+          // DIV has two Boolean inputs: upper enable and middle remainder-select.
+          // It has three output rows: success, middle status, and math error.
+          const top = block.position.row;
+          const enableExpr = boundary[top];
+          const remainderExpr = boundary[top + 1] || { kind: "false" };
+          if (!enableExpr) break;
+          rawNext[row] = {
+            kind: "function",
+            opcode: optimizerOpcodes.divide,
+            id: block.id,
+            params: [
+              block.properties?.dividend ?? null,
+              block.properties?.divisor ?? null,
+              block.properties?.result ?? null,
+              block.properties?.remainder ?? null,
+              outputSelector
+            ],
+            inputs: [enableExpr, remainderExpr]
+          };
+          break;
+        }
+
         // Coils are rung terminals, not pass-through edges.
         case "coil":
           break;
 
         default:
-          // Math/Special execution records are reserved in the format but their
-          // topology/parameter rules have not yet been defined. Preserve safety
-          // by refusing to silently miscompile them.
           throw new Error(`Optimization rules are not yet defined for ${block.type}.`);
       }
     }
@@ -1200,6 +1280,10 @@ function buildOptimizedProgram(program = buildProgramObject()) {
 
   function serializeExpression(expr, output, allowImplicitSeries = false) {
     if (!expr || expr.kind === "true") return;
+    if (expr.kind === "false") {
+      output.push(null);
+      return;
+    }
 
     if (expr.kind === "block") {
       output.push([expr.opcode, expr.id, expr.binding]);
