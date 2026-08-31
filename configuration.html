@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.1</title>
+<title>PLC Configuration v1.2</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
@@ -16,7 +16,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </style>
 </head>
 <body>
-<header><h1 id="pageHeading">PLC Configuration v1.1</h1></header>
+<header><h1 id="pageHeading">PLC Configuration v1.2</h1></header>
 <main>
 <nav class="tabs" aria-label="PLC configuration sections">
 <button class="tab-button active" type="button" data-tab="hardware">Hardware</button>
@@ -81,7 +81,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.1';
+const CONFIG_VERSION='1.2';
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
 document.getElementById('pageHeading').textContent=`PLC Configuration v${CONFIG_VERSION}`;
 
@@ -94,16 +94,42 @@ const panels=[...document.querySelectorAll('.tab-panel')];
 let ioState={};
 
 const picoPins=[...Array(23).keys(),26,27,28].map(n=>`GP${n}`);
+const picoAlternateFunctions={
+ GP0:['UART0 TX','I2C0 SDA','SPI0 RX'],
+ GP1:['UART0 RX','I2C0 SCL','SPI0 CSn'],
+ GP2:['I2C1 SDA','SPI0 SCK'],
+ GP3:['I2C1 SCL','SPI0 TX'],
+ GP4:['UART1 TX','I2C0 SDA','SPI0 RX'],
+ GP5:['UART1 RX','I2C0 SCL','SPI0 CSn'],
+ GP6:['I2C1 SDA','SPI0 SCK'],
+ GP7:['I2C1 SCL','SPI0 TX'],
+ GP8:['UART1 TX','I2C0 SDA','SPI1 RX'],
+ GP9:['UART1 RX','I2C0 SCL','SPI1 CSn'],
+ GP10:['I2C1 SDA','SPI1 SCK'],
+ GP11:['I2C1 SCL','SPI1 TX'],
+ GP12:['UART0 TX','I2C0 SDA','SPI1 RX'],
+ GP13:['UART0 RX','I2C0 SCL','SPI1 CSn'],
+ GP14:['I2C1 SDA','SPI1 SCK'],
+ GP15:['I2C1 SCL','SPI1 TX'],
+ GP16:['UART0 TX','I2C0 SDA','SPI0 RX'],
+ GP17:['UART0 RX','I2C0 SCL','SPI0 CSn'],
+ GP18:['I2C1 SDA','SPI0 SCK'],
+ GP19:['I2C1 SCL','SPI0 TX'],
+ GP20:['I2C0 SDA'],
+ GP21:['I2C0 SCL'],
+ GP22:[],
+ GP26:['ADC0','I2C1 SDA'],
+ GP27:['ADC1','I2C1 SCL'],
+ GP28:['ADC2']
+};
 function picoFunctions(pin){
- const n=Number(pin.slice(2));
- const options=['Output','Input','PWM Output','I2C SDA','I2C SCL','UART TX','UART RX'];
- if([26,27,28].includes(n)) options.push('ADC Input');
- return options;
+ // Every exposed Pico GPIO can be used for ordinary digital input/output or PWM.
+ // Alternate-function choices below follow the supplied Raspberry Pi Pico pinout.
+ return ['Output','Input','PWM Output',...(picoAlternateFunctions[pin]||[])];
 }
 function classifyFunction(fn){
- if(fn==='Input') return 'I';
- if(fn==='ADC Input') return 'I';
- if(['Output','PWM Output'].includes(fn)) return 'O';
+ if(fn==='Input' || /^ADC[0-2]$/.test(fn)) return 'I';
+ if(fn==='Output' || fn==='PWM Output') return 'O';
  return '';
 }
 function stateKey(resource,pin){return `${resource}|${pin}`;}
