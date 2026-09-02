@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.4</title>
+<title>PLC Configuration v1.5</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
@@ -16,7 +16,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </style>
 </head>
 <body>
-<header><h1 id="pageHeading">PLC Configuration v1.4</h1></header>
+<header><h1 id="pageHeading">PLC Configuration v1.5</h1></header>
 <main>
 <nav class="tabs" aria-label="PLC configuration sections">
 <button class="tab-button active" type="button" data-tab="hardware">Hardware</button>
@@ -62,7 +62,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 <tbody id="digitalBody"></tbody>
 </table>
 </div>
-<p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Not Used. A point cannot be marked Used until a descriptor has been entered. Pico functions other than ordinary Input or Output use Logical Point <strong>n/a</strong> but may still be marked Used. Selecting an I²C, UART, or SPI function automatically configures the matching pin(s) for that communication peripheral and disables alternate pin groups for the same peripheral until it is released.</p>
+<p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Not Used. A point cannot be marked Used until a descriptor has been entered. Pico functions other than ordinary Input or Output use Logical Point <strong>n/a</strong> but may still be marked Used. Selecting an I²C, UART, or SPI function automatically configures the matching pin(s), fills each communication pin Descriptor with its selected function and physical Pico pin number, and disables alternate pin groups for the same peripheral until it is released.</p>
 </section>
 </div>
 
@@ -81,7 +81,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.4';
+const CONFIG_VERSION='1.5';
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
 document.getElementById('pageHeading').textContent=`PLC Configuration v${CONFIG_VERSION}`;
 
@@ -94,6 +94,11 @@ const panels=[...document.querySelectorAll('.tab-panel')];
 let ioState={};
 
 const picoPins=[...Array(23).keys(),26,27,28].map(n=>`GP${n}`);
+const picoPhysicalPins={
+ GP0:1,GP1:2,GP2:4,GP3:5,GP4:6,GP5:7,GP6:9,GP7:10,GP8:11,GP9:12,
+ GP10:14,GP11:15,GP12:16,GP13:17,GP14:19,GP15:20,GP16:21,GP17:22,GP18:24,GP19:25,
+ GP20:26,GP21:27,GP22:29,GP26:31,GP27:32,GP28:34
+};
 const picoAlternateFunctions={
  GP0:['UART0 TX','I2C0 SDA','SPI0 RX'],
  GP1:['UART0 RX','I2C0 SCL','SPI0 CSn'],
@@ -174,7 +179,8 @@ function classifyFunction(fn){
 function stateKey(resource,pin){return `${resource}|${pin}`;}
 function ensureState(resource,pin,kind){
  const key=stateKey(resource,pin);
- if(!ioState[key]) ioState[key]={function:'Output',descriptor:'',active:'not_used',kind};
+ if(!ioState[key]) ioState[key]={function:'Output',descriptor:'',descriptorAuto:false,active:'not_used',kind};
+ if(typeof ioState[key].descriptorAuto!=='boolean')ioState[key].descriptorAuto=false;
  return ioState[key];
 }
 function makeFunctionSelect(resource,pin,kind,state){
@@ -194,6 +200,38 @@ function makeFunctionSelect(resource,pin,kind,state){
 
 function getPicoState(pin){return ensureState('Raspberry Pi Pico',pin,'pico');}
 function getPicoRow(pin){return [...digitalBody.rows].find(tr=>tr.dataset.key===stateKey('Raspberry Pi Pico',pin));}
+function communicationDescriptor(pin,fn){
+ const protocol=communicationProtocol(fn);
+ if(!protocol)return '';
+ const physicalPin=picoPhysicalPins[pin];
+ return `${fn} — Pin ${physicalPin ?? pin}`;
+}
+function applyPicoDescriptorRule(pin){
+ const state=getPicoState(pin);
+ const row=getPicoRow(pin);
+ const autoText=communicationDescriptor(pin,state.function);
+ if(autoText){
+   state.descriptor=autoText;
+   state.descriptorAuto=true;
+ }else if(state.descriptorAuto){
+   state.descriptor='';
+   state.descriptorAuto=false;
+ }
+ if(row){
+   const descriptor=row.cells[4].querySelector('input[type=text]');
+   const active=row.cells[5].querySelector('select');
+   if(descriptor){
+     descriptor.value=state.descriptor||'';
+     descriptor.readOnly=!!autoText;
+     descriptor.title=autoText?'Descriptor is assigned automatically for communication functions.':'';
+   }
+   if(active){
+     const ready=String(state.descriptor||'').trim().length>0;
+     active.disabled=!ready;
+     if(!ready){active.value='not_used';state.active='not_used';}
+   }
+ }
+}
 function setPicoFunction(pin,fn){
  const state=getPicoState(pin);
  state.function=fn;
@@ -202,6 +240,7 @@ function setPicoFunction(pin,fn){
    const sel=row.cells[3].querySelector('select');
    if(sel && [...sel.options].some(o=>o.value===fn))sel.value=fn;
  }
+ applyPicoDescriptorRule(pin);
 }
 function clearCommunicationProtocol(protocol,exceptGroupId=''){
  communicationGroups.filter(g=>g.protocol===protocol && g.id!==exceptGroupId).forEach(g=>{
@@ -284,7 +323,15 @@ function appendIORow(resource,pin,kind){
  const functionSelect=makeFunctionSelect(resource,pin,kind,state);
  functionTd.appendChild(functionSelect);
  const descriptorTd=document.createElement('td');
- const descriptor=document.createElement('input');descriptor.type='text';descriptor.placeholder='Enter description';descriptor.value=state.descriptor||'';
+ const descriptor=document.createElement('input');descriptor.type='text';descriptor.placeholder='Enter description';
+ if(kind==='pico'){
+   const autoText=communicationDescriptor(pin,state.function);
+   if(autoText){state.descriptor=autoText;state.descriptorAuto=true;}
+   else if(state.descriptorAuto){state.descriptor='';state.descriptorAuto=false;}
+ }
+ descriptor.value=state.descriptor||'';
+ descriptor.readOnly=kind==='pico' && !!communicationProtocol(state.function);
+ descriptor.title=descriptor.readOnly?'Descriptor is assigned automatically for communication functions.':'';
  const activeTd=document.createElement('td');
  const active=document.createElement('select');active.innerHTML='<option value="not_used">Not Used</option><option value="used">Used</option>';active.value=state.active||'not_used';
  function syncActiveAvailability(){
@@ -294,7 +341,11 @@ function appendIORow(resource,pin,kind){
    active.disabled=!ready;
    if(!ready){active.value='not_used';state.active='not_used';}
  }
- functionSelect.addEventListener('change',()=>{syncActiveAvailability();renumberLogicalPoints();});
+ functionSelect.addEventListener('change',()=>{
+   if(kind==='pico')applyPicoDescriptorRule(pin);
+   syncActiveAvailability();
+   renumberLogicalPoints();
+});
  descriptor.addEventListener('input',()=>{state.descriptor=descriptor.value;syncActiveAvailability();renumberLogicalPoints();});
  active.addEventListener('change',()=>{state.active=active.value;renumberLogicalPoints();});
  descriptorTd.appendChild(descriptor);activeTd.appendChild(active);
