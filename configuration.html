@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.5</title>
+<title>PLC Configuration v1.6</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
@@ -16,7 +16,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </style>
 </head>
 <body>
-<header><h1 id="pageHeading">PLC Configuration v1.5</h1></header>
+<header><h1 id="pageHeading">PLC Configuration v1.6</h1></header>
 <main>
 <nav class="tabs" aria-label="PLC configuration sections">
 <button class="tab-button active" type="button" data-tab="hardware">Hardware</button>
@@ -55,14 +55,14 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 <div id="digital" class="tab-panel">
 <section class="card">
 <h2>Digital I/O Table</h2>
-<p>The Pico GPIO points are listed first. Enabled MCP23017 expansion points are added automatically below them. Choose the required function, enter a descriptor, then mark the point as <strong>Used</strong>. Logical input and output numbers are assigned sequentially as <strong>I:</strong> and <strong>O:</strong>.</p>
+<p>The Pico GPIO points are listed first. Enabled MCP23017 expansion points are added automatically below them. Choose the required function, enter a descriptor, then the point is automatically set to <strong>Enabled</strong>. Logical input and output numbers are assigned sequentially as <strong>I:</strong> and <strong>O:</strong>.</p>
 <div class="table-wrap">
 <table class="io-table">
 <thead><tr><th>Logical Point</th><th>Physical Resource</th><th>Pin</th><th>Function</th><th>Descriptor</th><th>Active</th></tr></thead>
 <tbody id="digitalBody"></tbody>
 </table>
 </div>
-<p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Not Used. A point cannot be marked Used until a descriptor has been entered. Pico functions other than ordinary Input or Output use Logical Point <strong>n/a</strong> but may still be marked Used. Selecting an I²C, UART, or SPI function automatically configures the matching pin(s), fills each communication pin Descriptor with its selected function and physical Pico pin number, and disables alternate pin groups for the same peripheral until it is released.</p>
+<p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Disabled. Once a Function is selected and a Descriptor is present, Active is automatically set to Enabled. Pico functions other than ordinary Input or Output use Logical Point <strong>n/a</strong> but may still be Enabled. Selecting an I²C, UART, or SPI function automatically configures the matching pin(s), fills each communication pin Descriptor with its selected function and physical Pico pin number, and disables alternate pin groups for the same peripheral until it is released.</p>
 </section>
 </div>
 
@@ -179,7 +179,7 @@ function classifyFunction(fn){
 function stateKey(resource,pin){return `${resource}|${pin}`;}
 function ensureState(resource,pin,kind){
  const key=stateKey(resource,pin);
- if(!ioState[key]) ioState[key]={function:'Output',descriptor:'',descriptorAuto:false,active:'not_used',kind};
+ if(!ioState[key]) ioState[key]={function:'Output',descriptor:'',descriptorAuto:false,active:'disabled',kind};
  if(typeof ioState[key].descriptorAuto!=='boolean')ioState[key].descriptorAuto=false;
  return ioState[key];
 }
@@ -226,9 +226,10 @@ function applyPicoDescriptorRule(pin){
      descriptor.title=autoText?'Descriptor is assigned automatically for communication functions.':'';
    }
    if(active){
-     const ready=String(state.descriptor||'').trim().length>0;
+     const ready=String(state.function||'').trim().length>0 && String(state.descriptor||'').trim().length>0;
      active.disabled=!ready;
-     if(!ready){active.value='not_used';state.active='not_used';}
+     if(ready){active.value='enabled';state.active='enabled';}
+     else{active.value='disabled';state.active='disabled';}
    }
  }
 }
@@ -333,13 +334,14 @@ function appendIORow(resource,pin,kind){
  descriptor.readOnly=kind==='pico' && !!communicationProtocol(state.function);
  descriptor.title=descriptor.readOnly?'Descriptor is assigned automatically for communication functions.':'';
  const activeTd=document.createElement('td');
- const active=document.createElement('select');active.innerHTML='<option value="not_used">Not Used</option><option value="used">Used</option>';active.value=state.active||'not_used';
+ const active=document.createElement('select');active.innerHTML='<option value="disabled">Disabled</option><option value="enabled">Enabled</option>';active.value=(state.active==='used'?'enabled':state.active==='not_used'?'disabled':state.active)||'disabled';
  function syncActiveAvailability(){
    // Any selected function may be activated once the student supplies a descriptor.
    // Non-digital Pico functions remain valid configured resources, but their Logical Point is N/A.
-   const ready=descriptor.value.trim().length>0;
+   const ready=String(state.function||'').trim().length>0 && descriptor.value.trim().length>0;
    active.disabled=!ready;
-   if(!ready){active.value='not_used';state.active='not_used';}
+   if(ready){active.value='enabled';state.active='enabled';}
+   else{active.value='disabled';state.active='disabled';}
  }
  functionSelect.addEventListener('change',()=>{
    if(kind==='pico')applyPicoDescriptorRule(pin);
@@ -369,8 +371,8 @@ function renumberLogicalPoints(){
    const state=ioState[tr.dataset.key];
    const logical=tr.cells[0];
    const cls=classifyFunction(state.function);
-   if(cls==='I' && state.active==='used') logical.textContent=`I:${String(i++).padStart(3,'0')}`;
-   else if(cls==='O' && state.active==='used') logical.textContent=`O:${String(o++).padStart(3,'0')}`;
+   if(cls==='I' && state.active==='enabled') logical.textContent=`I:${String(i++).padStart(3,'0')}`;
+   else if(cls==='O' && state.active==='enabled') logical.textContent=`O:${String(o++).padStart(3,'0')}`;
    else if(cls==='') logical.textContent='n/a';
    else logical.textContent='—';
  });
