@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.3</title>
+<title>PLC Configuration v1.4</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
@@ -16,7 +16,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </style>
 </head>
 <body>
-<header><h1 id="pageHeading">PLC Configuration v1.3</h1></header>
+<header><h1 id="pageHeading">PLC Configuration v1.4</h1></header>
 <main>
 <nav class="tabs" aria-label="PLC configuration sections">
 <button class="tab-button active" type="button" data-tab="hardware">Hardware</button>
@@ -62,7 +62,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 <tbody id="digitalBody"></tbody>
 </table>
 </div>
-<p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Not Used. A point cannot be marked Used until a descriptor has been entered. Pico functions other than ordinary Input or Output use Logical Point <strong>n/a</strong> but may still be marked Used.</p>
+<p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Not Used. A point cannot be marked Used until a descriptor has been entered. Pico functions other than ordinary Input or Output use Logical Point <strong>n/a</strong> but may still be marked Used. Selecting an I²C, UART, or SPI function automatically configures the matching pin(s) for that communication peripheral and disables alternate pin groups for the same peripheral until it is released.</p>
 </section>
 </div>
 
@@ -81,7 +81,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.3';
+const CONFIG_VERSION='1.4';
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
 document.getElementById('pageHeading').textContent=`PLC Configuration v${CONFIG_VERSION}`;
 
@@ -122,6 +122,42 @@ const picoAlternateFunctions={
  GP27:['ADC1','I2C1 SCL'],
  GP28:['ADC2']
 };
+
+// Communication peripheral groups. Selecting any member of a group configures
+// the complete physical pin set for that specific peripheral instance/group.
+const communicationGroups=[
+ {id:'I2C0_A',protocol:'I2C0',pins:{GP0:'I2C0 SDA',GP1:'I2C0 SCL'}},
+ {id:'I2C0_B',protocol:'I2C0',pins:{GP4:'I2C0 SDA',GP5:'I2C0 SCL'}},
+ {id:'I2C0_C',protocol:'I2C0',pins:{GP8:'I2C0 SDA',GP9:'I2C0 SCL'}},
+ {id:'I2C0_D',protocol:'I2C0',pins:{GP12:'I2C0 SDA',GP13:'I2C0 SCL'}},
+ {id:'I2C0_E',protocol:'I2C0',pins:{GP16:'I2C0 SDA',GP17:'I2C0 SCL'}},
+ {id:'I2C0_F',protocol:'I2C0',pins:{GP20:'I2C0 SDA',GP21:'I2C0 SCL'}},
+ {id:'I2C1_A',protocol:'I2C1',pins:{GP2:'I2C1 SDA',GP3:'I2C1 SCL'}},
+ {id:'I2C1_B',protocol:'I2C1',pins:{GP6:'I2C1 SDA',GP7:'I2C1 SCL'}},
+ {id:'I2C1_C',protocol:'I2C1',pins:{GP10:'I2C1 SDA',GP11:'I2C1 SCL'}},
+ {id:'I2C1_D',protocol:'I2C1',pins:{GP14:'I2C1 SDA',GP15:'I2C1 SCL'}},
+ {id:'I2C1_E',protocol:'I2C1',pins:{GP18:'I2C1 SDA',GP19:'I2C1 SCL'}},
+ {id:'I2C1_F',protocol:'I2C1',pins:{GP26:'I2C1 SDA',GP27:'I2C1 SCL'}},
+ {id:'UART0_A',protocol:'UART0',pins:{GP0:'UART0 TX',GP1:'UART0 RX'}},
+ {id:'UART0_B',protocol:'UART0',pins:{GP12:'UART0 TX',GP13:'UART0 RX'}},
+ {id:'UART0_C',protocol:'UART0',pins:{GP16:'UART0 TX',GP17:'UART0 RX'}},
+ {id:'UART1_A',protocol:'UART1',pins:{GP4:'UART1 TX',GP5:'UART1 RX'}},
+ {id:'UART1_B',protocol:'UART1',pins:{GP8:'UART1 TX',GP9:'UART1 RX'}},
+ {id:'SPI0_A',protocol:'SPI0',pins:{GP0:'SPI0 RX',GP1:'SPI0 CSn',GP2:'SPI0 SCK',GP3:'SPI0 TX'}},
+ {id:'SPI0_B',protocol:'SPI0',pins:{GP16:'SPI0 RX',GP17:'SPI0 CSn',GP18:'SPI0 SCK',GP19:'SPI0 TX'}},
+ {id:'SPI1_A',protocol:'SPI1',pins:{GP8:'SPI1 RX',GP9:'SPI1 CSn',GP10:'SPI1 SCK',GP11:'SPI1 TX'}},
+ {id:'SPI1_B',protocol:'SPI1',pins:{GP12:'SPI1 RX',GP13:'SPI1 CSn',GP14:'SPI1 SCK',GP15:'SPI1 TX'}}
+];
+const communicationProtocols=['I2C0','I2C1','UART0','UART1','SPI0','SPI1'];
+let activeCommunicationGroups={};
+let applyingCommunicationGroup=false;
+
+function communicationProtocol(fn){
+ return communicationProtocols.find(p=>String(fn||'').startsWith(p+' '))||'';
+}
+function groupForPinFunction(pin,fn){
+ return communicationGroups.find(g=>g.pins[pin]===fn)||null;
+}
 function picoFunctions(pin){
  // Every exposed Pico GPIO can be used for ordinary digital input/output or PWM.
  // Alternate-function choices below follow the supplied Raspberry Pi Pico pinout.
@@ -146,8 +182,96 @@ function makeFunctionSelect(resource,pin,kind,state){
  const choices=kind==='pico'?picoFunctions(pin):['Output','Input'];
  choices.forEach(fn=>{const o=document.createElement('option');o.value=fn;o.textContent=fn;sel.appendChild(o);});
  if(choices.includes(state.function))sel.value=state.function;else state.function=choices[0];
- sel.addEventListener('change',()=>{state.function=sel.value;renumberLogicalPoints();});
+ sel.addEventListener('change',()=>{
+   const previous=state.function;
+   state.function=sel.value;
+   if(kind==='pico' && !applyingCommunicationGroup)handlePicoCommunicationSelection(pin,state.function,previous);
+   renumberLogicalPoints();
+   refreshCommunicationOptionAvailability();
+ });
  return sel;
+}
+
+function getPicoState(pin){return ensureState('Raspberry Pi Pico',pin,'pico');}
+function getPicoRow(pin){return [...digitalBody.rows].find(tr=>tr.dataset.key===stateKey('Raspberry Pi Pico',pin));}
+function setPicoFunction(pin,fn){
+ const state=getPicoState(pin);
+ state.function=fn;
+ const row=getPicoRow(pin);
+ if(row){
+   const sel=row.cells[3].querySelector('select');
+   if(sel && [...sel.options].some(o=>o.value===fn))sel.value=fn;
+ }
+}
+function clearCommunicationProtocol(protocol,exceptGroupId=''){
+ communicationGroups.filter(g=>g.protocol===protocol && g.id!==exceptGroupId).forEach(g=>{
+   Object.entries(g.pins).forEach(([pin,fn])=>{
+     const state=getPicoState(pin);
+     if(state.function===fn)setPicoFunction(pin,'Output');
+   });
+ });
+}
+function handlePicoCommunicationSelection(pin,fn,previous){
+ const protocol=communicationProtocol(fn);
+ const previousProtocol=communicationProtocol(previous);
+ if(previousProtocol && previousProtocol!==protocol){
+   const oldGroup=activeCommunicationGroups[previousProtocol];
+   if(oldGroup){
+     const g=communicationGroups.find(x=>x.id===oldGroup);
+     if(g && Object.keys(g.pins).includes(pin)){
+       delete activeCommunicationGroups[previousProtocol];
+       applyingCommunicationGroup=true;
+       Object.entries(g.pins).forEach(([p,f])=>{if(p!==pin && getPicoState(p).function===f)setPicoFunction(p,'Output');});
+       applyingCommunicationGroup=false;
+     }
+   }
+ }
+ if(!protocol){
+   // If the student manually changes one pin out of an active communication group,
+   // release the remainder of that group so another valid pin set can be chosen.
+   for(const [proto,groupId] of Object.entries({...activeCommunicationGroups})){
+     const g=communicationGroups.find(x=>x.id===groupId);
+     if(g && Object.prototype.hasOwnProperty.call(g.pins,pin)){
+       delete activeCommunicationGroups[proto];
+       applyingCommunicationGroup=true;
+       Object.entries(g.pins).forEach(([p,f])=>{if(p!==pin && getPicoState(p).function===f)setPicoFunction(p,'Output');});
+       applyingCommunicationGroup=false;
+     }
+   }
+   return;
+ }
+ const group=groupForPinFunction(pin,fn);
+ if(!group)return;
+ applyingCommunicationGroup=true;
+ clearCommunicationProtocol(protocol,group.id);
+ Object.entries(group.pins).forEach(([p,f])=>setPicoFunction(p,f));
+ activeCommunicationGroups[protocol]=group.id;
+ applyingCommunicationGroup=false;
+}
+function inferActiveCommunicationGroups(){
+ activeCommunicationGroups={};
+ communicationProtocols.forEach(protocol=>{
+   const candidates=communicationGroups.filter(g=>g.protocol===protocol);
+   const exact=candidates.find(g=>Object.entries(g.pins).every(([pin,fn])=>getPicoState(pin).function===fn));
+   if(exact)activeCommunicationGroups[protocol]=exact.id;
+ });
+}
+function refreshCommunicationOptionAvailability(){
+ inferActiveCommunicationGroups();
+ [...digitalBody.rows].forEach(tr=>{
+   if(!tr.dataset.key.startsWith('Raspberry Pi Pico|'))return;
+   const pin=tr.dataset.key.split('|')[1];
+   const sel=tr.cells[3].querySelector('select');
+   if(!sel)return;
+   [...sel.options].forEach(opt=>{
+     const protocol=communicationProtocol(opt.value);
+     if(!protocol){opt.disabled=false;return;}
+     const activeGroupId=activeCommunicationGroups[protocol];
+     if(!activeGroupId){opt.disabled=false;return;}
+     const group=communicationGroups.find(g=>g.id===activeGroupId);
+     opt.disabled=!(group && group.pins[pin]===opt.value);
+   });
+ });
 }
 function appendIORow(resource,pin,kind){
  const state=ensureState(resource,pin,kind);
@@ -185,6 +309,8 @@ function rebuildDigitalTable(){
    ['GPA0','GPA1','GPA2','GPA3','GPA4','GPA5','GPA6','GPA7','GPB0','GPB1','GPB2','GPB3','GPB4','GPB5','GPB6','GPB7'].forEach(pin=>appendIORow(resource,pin,'mcp'));
  });
  renumberLogicalPoints();
+ inferActiveCommunicationGroups();
+ refreshCommunicationOptionAvailability();
 }
 function renumberLogicalPoints(){
  let i=1,o=1;
