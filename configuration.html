@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.6</title>
+<title>PLC Configuration v1.7</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
@@ -16,7 +16,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </style>
 </head>
 <body>
-<header><h1 id="pageHeading">PLC Configuration v1.6</h1></header>
+<header><h1 id="pageHeading">PLC Configuration v1.7</h1></header>
 <main>
 <nav class="tabs" aria-label="PLC configuration sections">
 <button class="tab-button active" type="button" data-tab="hardware">Hardware</button>
@@ -55,14 +55,14 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 <div id="digital" class="tab-panel">
 <section class="card">
 <h2>Digital I/O Table</h2>
-<p>The Pico GPIO points are listed first. Enabled MCP23017 expansion points are added automatically below them. Choose the required function, enter a descriptor, then the point is automatically set to <strong>Enabled</strong>. Logical input and output numbers are assigned sequentially as <strong>I:</strong> and <strong>O:</strong>.</p>
+<p>The Pico GPIO points are listed first. Enabled MCP23017 expansion points are added automatically below them. Choose the required function, enter a descriptor, then the point is automatically set to <strong>Enabled</strong>. Logical input and output numbers are assigned as persistent five-digit addresses such as <strong>I:00001</strong> and <strong>O:00001</strong>. Once assigned, an address is never silently renumbered to another physical point.</p>
 <div class="table-wrap">
 <table class="io-table">
 <thead><tr><th>Logical Point</th><th>Physical Resource</th><th>Pin</th><th>Function</th><th>Descriptor</th><th>Active</th></tr></thead>
 <tbody id="digitalBody"></tbody>
 </table>
 </div>
-<p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Disabled. Once a Function is selected and a Descriptor is present, Active is automatically set to Enabled. Pico functions other than ordinary Input or Output use Logical Point <strong>n/a</strong> but may still be Enabled. Selecting an I²C, UART, or SPI function automatically configures the matching pin(s), fills each communication pin Descriptor with its selected function and physical Pico pin number, and disables alternate pin groups for the same peripheral until it is released.</p>
+<p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Disabled. Physical input/output logical addresses are allocated monotonically and are not reused automatically, so existing ladder bindings cannot silently change meaning. Once a Function is selected and a Descriptor is present, Active is automatically set to Enabled. Pico functions other than ordinary Input or Output use Logical Point <strong>n/a</strong> but may still be Enabled. Selecting an I²C, UART, or SPI function automatically configures the matching pin(s), fills each communication pin Descriptor with its selected function and physical Pico pin number, and disables alternate pin groups for the same peripheral until it is released.</p>
 </section>
 </div>
 
@@ -81,7 +81,9 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.5';
+const CONFIG_VERSION='1.7';
+const CONFIG_SCHEMA='PICO_PLC_CONFIGURATION';
+const CONFIG_SCHEMA_VERSION=1;
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
 document.getElementById('pageHeading').textContent=`PLC Configuration v${CONFIG_VERSION}`;
 
@@ -92,6 +94,7 @@ const digitalBody=document.getElementById('digitalBody');
 const tabs=[...document.querySelectorAll('.tab-button')];
 const panels=[...document.querySelectorAll('.tab-panel')];
 let ioState={};
+let logicalAllocation={nextInput:1,nextOutput:1};
 
 const picoPins=[...Array(23).keys(),26,27,28].map(n=>`GP${n}`);
 const picoPhysicalPins={
@@ -179,8 +182,10 @@ function classifyFunction(fn){
 function stateKey(resource,pin){return `${resource}|${pin}`;}
 function ensureState(resource,pin,kind){
  const key=stateKey(resource,pin);
- if(!ioState[key]) ioState[key]={function:'Output',descriptor:'',descriptorAuto:false,active:'disabled',kind};
+ if(!ioState[key]) ioState[key]={function:'Output',descriptor:'',descriptorAuto:false,active:'disabled',kind,logicalPoint:null,logicalClass:null};
  if(typeof ioState[key].descriptorAuto!=='boolean')ioState[key].descriptorAuto=false;
+ if(!('logicalPoint' in ioState[key]))ioState[key].logicalPoint=null;
+ if(!('logicalClass' in ioState[key]))ioState[key].logicalClass=null;
  return ioState[key];
 }
 function makeFunctionSelect(resource,pin,kind,state){
@@ -365,28 +370,154 @@ function rebuildDigitalTable(){
  inferActiveCommunicationGroups();
  refreshCommunicationOptionAvailability();
 }
-function renumberLogicalPoints(){
- let i=1,o=1;
+function allocateLogicalPoint(cls){
+ if(cls==='I'){
+   if(logicalAllocation.nextInput>9999)throw new Error('No physical input logical addresses remain in the I:00001-I:09999 range.');
+   return `I:${String(logicalAllocation.nextInput++).padStart(5,'0')}`;
+ }
+ if(cls==='O'){
+   if(logicalAllocation.nextOutput>9999)throw new Error('No physical output logical addresses remain in the O:00001-O:09999 range.');
+   return `O:${String(logicalAllocation.nextOutput++).padStart(5,'0')}`;
+ }
+ return null;
+}
+function refreshLogicalPoints(){
  [...digitalBody.rows].forEach(tr=>{
    const state=ioState[tr.dataset.key];
    const logical=tr.cells[0];
    const cls=classifyFunction(state.function);
-   if(cls==='I' && state.active==='enabled') logical.textContent=`I:${String(i++).padStart(3,'0')}`;
-   else if(cls==='O' && state.active==='enabled') logical.textContent=`O:${String(o++).padStart(3,'0')}`;
-   else if(cls==='') logical.textContent='n/a';
-   else logical.textContent='—';
+   if((cls==='I'||cls==='O') && state.active==='enabled'){
+     if(!state.logicalPoint || state.logicalClass!==cls){
+       state.logicalPoint=allocateLogicalPoint(cls);
+       state.logicalClass=cls;
+     }
+     logical.textContent=state.logicalPoint;
+   }else if(cls===''){
+     logical.textContent='n/a';
+   }else{
+     // Preserve any previously allocated address in state so disabling and
+     // re-enabling the same physical I/O point does not silently renumber it.
+     logical.textContent='—';
+   }
  });
 }
+// Legacy function name retained for existing event handlers.
+function renumberLogicalPoints(){refreshLogicalPoints();}
 function updateSummary(){
  const enabled=devices.filter(d=>d.checked);
  devices.forEach(d=>d.closest('.device-row').classList.toggle('enabled',d.checked));
  summary.innerHTML=`Enabled MCP23017 devices: ${enabled.length}<br>Expansion I/O points available: ${enabled.length*16}`;
  rebuildDigitalTable();
 }
+function parseMcpResource(resource){
+ const match=/^MCP23017 @ (0x[0-9A-Fa-f]{2})$/.exec(resource||'');
+ return match?match[1]:null;
+}
+function buildCanonicalConfiguration(){
+ refreshLogicalPoints();
+ const gpio=[];
+ const mcpMap=new Map();
+ const io=[];
+ const enabledMcp=devices.filter(d=>d.checked).map(d=>d.dataset.address);
+ enabledMcp.forEach(address=>mcpMap.set(address,[]));
+
+ for(const [key,state] of Object.entries(ioState)){
+   const split=key.lastIndexOf('|');
+   if(split<0)continue;
+   const resource=key.slice(0,split);
+   const pin=key.slice(split+1);
+   const fn=state.function||'Output';
+   const descriptor=String(state.descriptor||'').trim();
+   const enabled=state.active==='enabled';
+   const cls=classifyFunction(fn);
+   const logicalPoint=(cls && state.logicalPoint)?state.logicalPoint:null;
+
+   if(resource==='Raspberry Pi Pico'){
+     gpio.push({
+       gpio:Number(pin.replace(/^GP/,'')),
+       pin,
+       physicalPin:picoPhysicalPins[pin]??null,
+       function:fn,
+       logicalPoint,
+       descriptor,
+       enabled
+     });
+   }else{
+     const address=parseMcpResource(resource);
+     if(address && mcpMap.has(address)){
+       mcpMap.get(address).push({pin,function:fn,logicalPoint,descriptor,enabled});
+     }
+   }
+   if(enabled && logicalPoint){
+     io.push({logicalPoint,direction:cls==='I'?'input':'output',resource,pin,descriptor});
+   }
+ }
+
+ return {
+   schema:CONFIG_SCHEMA,
+   schemaVersion:CONFIG_SCHEMA_VERSION,
+   editorVersion:CONFIG_VERSION,
+   version:CONFIG_VERSION,
+   picoType:picoType.value,
+   controller:{model:picoType.value},
+   i2cDevices:enabledMcp.map(address=>({type:'MCP23017',address})),
+   allocation:{...logicalAllocation},
+   gpio:gpio.sort((a,b)=>a.gpio-b.gpio),
+   mcp23017:[...mcpMap.entries()].map(([address,pins])=>({address,pins})),
+   io:io.sort((a,b)=>a.logicalPoint.localeCompare(b.logicalPoint)),
+   // ioState remains for backward compatibility with ladder.html while the
+   // canonical arrays above become the long-term Pico/browser contract.
+   ioState
+ };
+}
+function validateConfiguration(config){
+ const errors=[];
+ const logicalSeen=new Map();
+ for(const row of [...config.gpio,...config.mcp23017.flatMap(d=>d.pins.map(p=>({...p,address:d.address})))]){
+   if(!row.enabled)continue;
+   if(!String(row.function||'').trim())errors.push('An enabled I/O point has no Function selected.');
+   if(!String(row.descriptor||'').trim())errors.push(`Enabled ${row.pin||'I/O point'} is missing a Descriptor.`);
+   if(row.logicalPoint){
+     if(!/^[IO]:\d{5}$/.test(row.logicalPoint))errors.push(`${row.logicalPoint} is not a valid five-digit physical I/O address.`);
+     if(logicalSeen.has(row.logicalPoint))errors.push(`${row.logicalPoint} is assigned to more than one physical point.`);
+     else logicalSeen.set(row.logicalPoint,true);
+   }
+ }
+ communicationProtocols.forEach(protocol=>{
+   const selected=communicationGroups.filter(g=>g.protocol===protocol)
+     .filter(g=>Object.entries(g.pins).every(([pin,fn])=>getPicoState(pin).function===fn));
+   if(selected.length>1)errors.push(`${protocol} is assigned to more than one Pico pin group.`);
+ });
+ return [...new Set(errors)];
+}
 function saveConfiguration(){
- const config={version:CONFIG_VERSION,picoType:picoType.value,i2cDevices:devices.filter(d=>d.checked).map(d=>({type:'MCP23017',address:d.dataset.address})),ioState};
- localStorage.setItem('picoPLCConfiguration',JSON.stringify(config));
- alert('PLC configuration saved in this browser.');
+ try{
+   const config=buildCanonicalConfiguration();
+   const errors=validateConfiguration(config);
+   if(errors.length){alert('Configuration was not saved:\n\n'+errors.join('\n'));return;}
+   localStorage.setItem('picoPLCConfiguration',JSON.stringify(config));
+   alert('PLC configuration saved in this browser.');
+ }catch(error){
+   alert(`Configuration was not saved: ${error.message||error}`);
+ }
+}
+function migrateLegacyLogicalPoints(){
+ // Older versions generated three-digit addresses dynamically. Assign stable
+ // five-digit addresses to any currently enabled physical I/O that lacks one.
+ const usedI=[];const usedO=[];
+ Object.values(ioState).forEach(state=>{
+   if(state.logicalPoint){
+     const m=/^([IO]):(\d+)$/.exec(state.logicalPoint);
+     if(m){
+       const cls=m[1];const n=Number(m[2]);
+       state.logicalPoint=`${cls}:${String(n).padStart(5,'0')}`;
+       state.logicalClass=cls;
+       (cls==='I'?usedI:usedO).push(n);
+     }
+   }
+ });
+ logicalAllocation.nextInput=Math.max(logicalAllocation.nextInput,...usedI.map(n=>n+1),1);
+ logicalAllocation.nextOutput=Math.max(logicalAllocation.nextOutput,...usedO.map(n=>n+1),1);
 }
 function loadConfiguration(){
  const saved=localStorage.getItem('picoPLCConfiguration');
@@ -394,10 +525,16 @@ function loadConfiguration(){
   try{
    const config=JSON.parse(saved);
    if(config.picoType)picoType.value=config.picoType;
-   const enabled=new Set((config.i2cDevices||[]).map(x=>x.address));
+   else if(config.controller?.model)picoType.value=config.controller.model;
+   const enabled=new Set((config.i2cDevices||config.mcp23017||[]).map(x=>x.address));
    devices.forEach(d=>d.checked=enabled.has(d.dataset.address));
    if(config.ioState && typeof config.ioState==='object')ioState=config.ioState;
-  }catch(e){}
+   if(config.allocation && typeof config.allocation==='object'){
+     logicalAllocation.nextInput=Math.max(1,Number(config.allocation.nextInput)||1);
+     logicalAllocation.nextOutput=Math.max(1,Number(config.allocation.nextOutput)||1);
+   }
+   migrateLegacyLogicalPoints();
+  }catch(e){console.warn('Unable to load PLC configuration:',e);}
  }
  updateSummary();
 }
