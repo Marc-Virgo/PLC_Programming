@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.42</title>
+  <title>Ladder Logic — v1.43</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile-icon{display:block;max-width:100%;height:40px;width:auto;object-fit:contain;pointer-events:none}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -336,7 +336,7 @@
 }
 
 
-/* v1.42 project identity, PLC runtime controls, transfer progress, and live monitoring */
+/* v1.43 canonical configuration integration, project identity, PLC runtime controls, transfer progress, and live monitoring */
 .plc-button{border:0;border-radius:8px;padding:11px 14px;font-size:.92rem;font-weight:700;cursor:pointer;background:#1d4ed8;color:white;white-space:nowrap}
 .plc-button:hover:not(:disabled){background:#1e40af}.plc-button.stop-mode{background:#991b1b}.plc-button.stop-mode:hover:not(:disabled){background:#7f1d1d}.plc-button:disabled{opacity:.48;cursor:not-allowed}
 .plc-connect-button{background:#475569}.plc-connect-button:hover:not(:disabled){background:#334155}
@@ -351,7 +351,7 @@
 <body>
 <div class="app">
 <header class="topbar">
-  <div class="title">Ladder Logic — v1.42</div>
+  <div class="title">Ladder Logic — v1.43</div>
 
   <div class="ribbon-main-controls">
     <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button>
@@ -638,7 +638,7 @@ let currentFileHandle = null;
 let currentProgramName = "Untitled";
 let currentProgramRevision = 1;
 
-// v1.42 PLC connection/runtime state. V1 has no stopped-valid-RAM state:
+// v1.43 PLC connection/runtime state. V1 has no stopped-valid-RAM state:
 // READY_FOR_PROGRAM means executable RAM is empty; RUNNING means a complete valid program is active.
 let plcPort = null;
 let plcReader = null;
@@ -755,6 +755,51 @@ function buildAuthoritativeVerboseProject() {
 
 function buildOptimizedConfiguration(configuration = getRawPlcConfiguration()) {
   const controllerMap = { pico:"PICO", pico_w:"PICO_W", pico2:"PICO_2", pico2_w:"PICO_2_W" };
+  const model = configuration?.controller?.model || configuration?.picoType || "pico2_w";
+
+  // v1.43: Prefer configuration.html v1.7+ canonical arrays.  Legacy ioState is
+  // retained only as a migration fallback for projects saved by older versions.
+  if (configuration?.schema === "PICO_PLC_CONFIGURATION" && Array.isArray(configuration.gpio)) {
+    const gpio = configuration.gpio
+      .filter(row => row && row.enabled)
+      .map(row => [
+        row.pin || `GP${Number(row.gpio)}`,
+        row.function || "",
+        row.logicalPoint || null,
+        row.descriptor || "",
+        row.physicalPin ?? null,
+        1
+      ]);
+
+    const mcp = (Array.isArray(configuration.mcp23017) ? configuration.mcp23017 : [])
+      .map(device => [
+        String(device.address || "").toLowerCase(),
+        (Array.isArray(device.pins) ? device.pins : [])
+          .filter(pin => pin && pin.enabled)
+          .map(pin => [pin.pin, pin.function || "", pin.logicalPoint || null, pin.descriptor || "", 1])
+      ]);
+
+    const io = (Array.isArray(configuration.io) ? configuration.io : [])
+      .filter(row => row && row.logicalPoint)
+      .map(row => [
+        normalizeLogicalPoint(row.logicalPoint) || row.logicalPoint,
+        String(row.direction || "").toLowerCase() === "input" ? 0 : 1,
+        row.resource || "",
+        row.pin || "",
+        row.descriptor || ""
+      ]);
+
+    return {
+      schema: configuration.schema,
+      schemaVersion: configuration.schemaVersion || 1,
+      controller: controllerMap[model] || String(model).toUpperCase(),
+      gpio,
+      mcp,
+      io
+    };
+  }
+
+  // Legacy configuration fallback.
   const gpio = [];
   const mcpMap = new Map();
   const io = [];
@@ -773,7 +818,7 @@ function buildOptimizedConfiguration(configuration = getRawPlcConfiguration()) {
     const logicalPoint = logicalByKey.get(key)?.logicalPoint || null;
 
     if (resource === "Raspberry Pi Pico") {
-      gpio.push([pin, fn, descriptor, 1]);
+      gpio.push([pin, fn, logicalPoint, descriptor, null, 1]);
     } else {
       const match = /MCP23017\s*@\s*(0x[0-9a-f]+)/i.exec(resource);
       if (match) {
@@ -787,7 +832,6 @@ function buildOptimizedConfiguration(configuration = getRawPlcConfiguration()) {
     }
   }
 
-  // Preserve enabled MCP devices even if no pin is currently used.
   for (const device of configuration?.i2cDevices || []) {
     if (device?.type !== "MCP23017" || !device.address) continue;
     const addr = String(device.address).toLowerCase();
@@ -795,7 +839,7 @@ function buildOptimizedConfiguration(configuration = getRawPlcConfiguration()) {
   }
 
   return {
-    controller: controllerMap[configuration?.picoType] || "PICO_2_W",
+    controller: controllerMap[model] || "PICO_2_W",
     gpio,
     mcp: [...mcpMap.entries()].map(([address, pins]) => [address, pins]),
     io
@@ -832,27 +876,24 @@ function getConfigurationForProgram() {
   const fallback = { controller: "PICO_2_W", mcp23017: [] };
 
   try {
-    const saved = localStorage.getItem("picoPLCConfiguration");
-    if (!saved) return fallback;
-
-    const config = JSON.parse(saved);
+    const config = getRawPlcConfiguration();
+    if (!config || !Object.keys(config).length) return fallback;
     const controllerMap = {
       pico: "PICO",
       pico_w: "PICO_W",
       pico2: "PICO_2",
       pico2_w: "PICO_2_W"
     };
-
+    const model = config?.controller?.model || config?.picoType;
+    const devices = Array.isArray(config.mcp23017)
+      ? config.mcp23017.map(device => ({ address: device.address, enabled: true }))
+      : Array.isArray(config.i2cDevices)
+        ? config.i2cDevices.filter(device => device && device.type === "MCP23017")
+            .map(device => ({ address: device.address, enabled: true }))
+        : [];
     return {
-      controller: controllerMap[config.picoType] || fallback.controller,
-      mcp23017: Array.isArray(config.i2cDevices)
-        ? config.i2cDevices
-            .filter(device => device && device.type === "MCP23017")
-            .map(device => ({
-              address: device.address,
-              enabled: true
-            }))
-        : []
+      controller: controllerMap[model] || fallback.controller,
+      mcp23017: devices
     };
   } catch (error) {
     console.warn("Unable to read PLC configuration:", error);
@@ -862,16 +903,30 @@ function getConfigurationForProgram() {
 
 
 function getConfiguredDigitalIOPoints() {
-  let config;
-  try {
-    const saved = localStorage.getItem("picoPLCConfiguration");
-    if (!saved) return [];
-    config = JSON.parse(saved);
-  } catch (error) {
-    console.warn("Unable to read Digital I/O configuration:", error);
-    return [];
+  const config = getRawPlcConfiguration();
+  if (!config || !Object.keys(config).length) return [];
+
+  // v1.43 canonical path: configuration.html assigns and persists the logical
+  // point. ladder.html must never independently renumber physical I/O.
+  if (config?.schema === "PICO_PLC_CONFIGURATION" && Array.isArray(config.io)) {
+    return config.io
+      .filter(row => row && row.logicalPoint && ["input", "output"].includes(String(row.direction || "").toLowerCase()))
+      .map(row => ({
+        logicalPoint: normalizeLogicalPoint(row.logicalPoint) || String(row.logicalPoint),
+        function: String(row.direction).toLowerCase() === "input" ? "Input" : "Output",
+        descriptor: String(row.descriptor || "").trim(),
+        resource: String(row.resource || ""),
+        pin: String(row.pin || "")
+      }))
+      .sort((a, b) => {
+        const ap = logicalPointNumber(a.logicalPoint), bp = logicalPointNumber(b.logicalPoint);
+        if (!ap || !bp) return a.logicalPoint.localeCompare(b.logicalPoint);
+        return ap.type.localeCompare(bp.type) || ap.number - bp.number;
+      });
   }
 
+  // Legacy fallback for configuration.html <= v1.6.  Use stored logicalPoint
+  // where present; generate only for legacy rows that truly have no address.
   const ioState = config?.ioState;
   if (!ioState || typeof ioState !== "object") return [];
 
@@ -907,9 +962,13 @@ function getConfiguredDigitalIOPoints() {
   let outputNumber = 1;
   return rows.map(row => {
     const isInput = row.state.function === "Input";
-    const number = isInput ? inputNumber++ : outputNumber++;
+    let logicalPoint = normalizeLogicalPoint(row.state.logicalPoint);
+    if (!logicalPoint) {
+      const number = isInput ? inputNumber++ : outputNumber++;
+      logicalPoint = `${isInput ? "I" : "O"}:${String(number).padStart(5, "0")}`;
+    }
     return {
-      logicalPoint: `${isInput ? "I" : "O"}:${String(number).padStart(5, "0")}`,
+      logicalPoint,
       function: row.state.function,
       descriptor: String(row.state.descriptor || "").trim(),
       resource: row.resource,
@@ -1800,7 +1859,7 @@ function createPlacedTileFromProgramBlock(block) {
 }
 
 function loadProgramIntoEditor(program) {
-  // v1.42 authoritative source files wrap the exact ladder/editor source and configuration.
+  // v1.43 authoritative source files wrap the exact ladder/editor source and canonical configuration.
   if (program?.format === "PICO_PLC_PROJECT") {
     if (program.formatVersion !== 1 || !program.ladder) throw new Error("Unsupported PLC project source format.");
     if (program.configuration && typeof program.configuration === "object") {
