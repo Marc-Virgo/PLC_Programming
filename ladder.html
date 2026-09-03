@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.41</title>
+  <title>Ladder Logic — v1.42</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile-icon{display:block;max-width:100%;height:40px;width:auto;object-fit:contain;pointer-events:none}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -335,12 +335,23 @@
   color: #374151;
 }
 
+
+/* v1.42 project identity, PLC runtime controls, transfer progress, and live monitoring */
+.plc-button{border:0;border-radius:8px;padding:11px 14px;font-size:.92rem;font-weight:700;cursor:pointer;background:#1d4ed8;color:white;white-space:nowrap}
+.plc-button:hover:not(:disabled){background:#1e40af}.plc-button.stop-mode{background:#991b1b}.plc-button.stop-mode:hover:not(:disabled){background:#7f1d1d}.plc-button:disabled{opacity:.48;cursor:not-allowed}
+.plc-connect-button{background:#475569}.plc-connect-button:hover:not(:disabled){background:#334155}
+.project-strip{display:flex;align-items:center;gap:10px;min-width:0;width:100%;font-size:.84rem}.project-strip label{display:flex;align-items:center;gap:5px;font-weight:700;color:#374151}.project-strip input{height:28px;border:1px solid #cbd5e1;border-radius:6px;padding:3px 7px;background:white;color:#111827;font:600 .84rem Arial,sans-serif}.project-strip #projectTitleInput{width:190px}.project-strip #projectRevisionInput{width:70px}.plc-status{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap}.plc-status-dot{width:10px;height:10px;border-radius:50%;background:#94a3b8}.plc-status.running .plc-status-dot{background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.85)}.plc-status.error .plc-status-dot{background:#dc2626}.plc-status.connecting .plc-status-dot{background:#2563eb}
+.rail.left.plc-running{background:#16a34a;box-shadow:0 0 6px #22c55e,0 0 14px rgba(34,197,94,.8),0 0 24px rgba(34,197,94,.45)}
+.placed-tile.live-powered{filter:drop-shadow(0 0 3px #22c55e) drop-shadow(0 0 7px rgba(34,197,94,.9));z-index:30}.placed-tile.live-power-in:not(.live-powered){filter:drop-shadow(-5px 0 5px rgba(34,197,94,.75))}
+.transfer-modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.48);display:flex;align-items:center;justify-content:center;z-index:100000;padding:18px}.transfer-modal-backdrop.hidden{display:none}.transfer-modal{width:min(92vw,620px);max-height:82vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 18px 55px rgba(0,0,0,.28);padding:22px}.transfer-modal h2{margin:0 0 8px;font-size:1.25rem}.transfer-current-stage{color:#475569;margin:0 0 12px}.transfer-progress-shell{height:18px;border-radius:999px;background:#e2e8f0;overflow:hidden;border:1px solid #cbd5e1}.transfer-progress-bar{height:100%;width:0;background:#2563eb;transition:width .2s ease,background-color .15s ease}.transfer-progress-bar.error{background:#dc2626}.transfer-log{margin:14px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:.9rem}.transfer-log li.ok::before{content:'✓ ';font-weight:900;color:#15803d}.transfer-log li.error::before{content:'✗ ';font-weight:900;color:#b91c1c}.transfer-log li.info::before{content:'• ';font-weight:900;color:#2563eb}.transfer-error-box{margin-top:14px;padding:11px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;white-space:pre-wrap}.transfer-modal-actions{display:flex;justify-content:flex-end;margin-top:16px}.transfer-close{border:0;border-radius:8px;padding:9px 16px;background:#111827;color:#fff;font-weight:700;cursor:pointer}.transfer-close.hidden{display:none}
+@media(max-width:900px){.project-strip{flex-wrap:wrap}.plc-status{margin-left:0}.project-strip #projectTitleInput{width:150px}.plc-button{padding:9px 10px;font-size:.82rem}}
+
 </style>
 </head>
 <body>
 <div class="app">
 <header class="topbar">
-  <div class="title">Ladder Logic — v1.41</div>
+  <div class="title">Ladder Logic — v1.42</div>
 
   <div class="ribbon-main-controls">
     <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button>
@@ -353,6 +364,8 @@
     <button class="file-button editor-control hidden" id="saveButton" type="button">Save</button>
     <button class="file-button editor-control hidden" id="saveAsButton" type="button">Save As</button>
     <button class="add-rows-button editor-control hidden" id="addRowsButton" type="button">Add 8 Rows</button>
+    <button class="plc-button plc-connect-button" id="connectPlcButton" type="button">Connect PLC</button>
+    <button class="plc-button" id="plcRunStopButton" type="button" disabled>Upload Logic, Run PLC</button>
     <a class="home-button" href="index.html">Home</a>
   </div>
 
@@ -369,11 +382,26 @@
 </header>
 <main class="main">
 <aside class="palette"><h2 class="palette-heading" id="paletteHeading">Basic Blocks</h2><div class="tile-list" id="tileList"></div></aside>
-<section class="workspace-wrap"><div class="workspace-toolbar">Ladder workspace — <span id="rowCount">16 major rows</span></div><div class="workspace"><div class="ladder-canvas"><div class="rail left"></div>
+<section class="workspace-wrap"><div class="workspace-toolbar"><div class="project-strip">
+  <span>Ladder workspace — <span id="rowCount">16 major rows</span></span>
+  <label>Project <input id="projectTitleInput" type="text" value="Untitled" maxlength="80" aria-label="Project title"></label>
+  <label>Revision <input id="projectRevisionInput" type="number" value="1" min="1" max="65535" step="1" aria-label="Project revision"></label>
+  <span class="plc-status" id="plcStatus"><span class="plc-status-dot"></span><span id="plcStatusText">Disconnected</span></span>
+</div></div><div class="workspace"><div class="ladder-canvas"><div class="rail left"></div>
             <div id="rungNumberLayer" class="rung-number-layer" aria-hidden="true"></div>
             <div id="cellHighlight" class="cell-highlight"></div>
           <div id="selectionMarquee" class="selection-marquee"></div></div></div></section>
 </main>
+</div>
+<div id="transferModalBackdrop" class="transfer-modal-backdrop hidden" role="presentation">
+  <section class="transfer-modal" role="dialog" aria-modal="true" aria-labelledby="transferModalTitle">
+    <h2 id="transferModalTitle">Programming PLC</h2>
+    <p id="transferCurrentStage" class="transfer-current-stage">Preparing transfer…</p>
+    <div class="transfer-progress-shell" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="transferProgressShell"><div id="transferProgressBar" class="transfer-progress-bar"></div></div>
+    <ul id="transferLog" class="transfer-log" aria-live="polite"></ul>
+    <div id="transferErrorBox" class="transfer-error-box hidden"></div>
+    <div class="transfer-modal-actions"><button id="transferCloseButton" class="transfer-close hidden" type="button">Close</button></div>
+  </section>
 </div>
 <img id="placementPreview" class="placement-preview" alt="">
 <script>
@@ -579,6 +607,19 @@ const selectionMarquee = document.getElementById("selectionMarquee");
 const openButton = document.getElementById("openButton");
 const saveButton = document.getElementById("saveButton");
 const saveAsButton = document.getElementById("saveAsButton");
+const connectPlcButton = document.getElementById("connectPlcButton");
+const plcRunStopButton = document.getElementById("plcRunStopButton");
+const projectTitleInput = document.getElementById("projectTitleInput");
+const projectRevisionInput = document.getElementById("projectRevisionInput");
+const plcStatus = document.getElementById("plcStatus");
+const plcStatusText = document.getElementById("plcStatusText");
+const transferModalBackdrop = document.getElementById("transferModalBackdrop");
+const transferCurrentStage = document.getElementById("transferCurrentStage");
+const transferProgressShell = document.getElementById("transferProgressShell");
+const transferProgressBar = document.getElementById("transferProgressBar");
+const transferLog = document.getElementById("transferLog");
+const transferErrorBox = document.getElementById("transferErrorBox");
+const transferCloseButton = document.getElementById("transferCloseButton");
 
 let majorRows = 16;
 const majorCellSize = 140;
@@ -596,6 +637,18 @@ let nextBlockId = 1;
 let currentFileHandle = null;
 let currentProgramName = "Untitled";
 let currentProgramRevision = 1;
+
+// v1.42 PLC connection/runtime state. V1 has no stopped-valid-RAM state:
+// READY_FOR_PROGRAM means executable RAM is empty; RUNNING means a complete valid program is active.
+let plcPort = null;
+let plcReader = null;
+let plcWriter = null;
+let plcReadBuffer = "";
+let plcConnected = false;
+let plcState = "DISCONNECTED";
+let plcMessageWaiters = [];
+let incomingProjectSource = null;
+const PLC_TRANSFER_CHUNK_BYTES = 768;
 
 let marqueeSelecting = false;
 let marqueeStart = null;
@@ -646,6 +699,133 @@ const programTypeToLabel = {
 function getDefinitionByProgramType(programType) {
   return Object.entries(placeableDefinitions)
     .find(([, definition]) => definition.programType === programType)?.[1] || null;
+}
+
+
+function getRawPlcConfiguration() {
+  try {
+    const saved = localStorage.getItem("picoPLCConfiguration");
+    return saved ? JSON.parse(saved) : {};
+  } catch (error) {
+    console.warn("Unable to read PLC configuration:", error);
+    return {};
+  }
+}
+
+function crc32Text(text) {
+  const table = crc32Text.table || (crc32Text.table = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })());
+  let crc = 0xFFFFFFFF;
+  for (const byte of new TextEncoder().encode(text)) crc = table[(crc ^ byte) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+function syncProjectIdentityUi() {
+  projectTitleInput.value = currentProgramName;
+  projectRevisionInput.value = String(currentProgramRevision);
+}
+
+function buildAuthoritativeVerboseProject() {
+  const ladder = buildProgramObject();
+  const configuration = getRawPlcConfiguration();
+  const base = {
+    format: "PICO_PLC_PROJECT",
+    formatVersion: 1,
+    project: {
+      title: currentProgramName,
+      revision: currentProgramRevision,
+      modifiedUtc: new Date().toISOString()
+    },
+    configuration,
+    ladder
+  };
+  const configCRC = crc32Text(JSON.stringify(configuration));
+  const sourceCRC = crc32Text(JSON.stringify(base));
+  base.project.sourceCRC = sourceCRC;
+  base.project.configCRC = configCRC;
+  return base;
+}
+
+function buildOptimizedConfiguration(configuration = getRawPlcConfiguration()) {
+  const controllerMap = { pico:"PICO", pico_w:"PICO_W", pico2:"PICO_2", pico2_w:"PICO_2_W" };
+  const gpio = [];
+  const mcpMap = new Map();
+  const io = [];
+  const ioState = configuration?.ioState && typeof configuration.ioState === "object" ? configuration.ioState : {};
+  const logicalByKey = new Map(getConfiguredDigitalIOPoints().map(point => [`${point.resource}|${point.pin}`, point]));
+
+  for (const [key, stateRaw] of Object.entries(ioState)) {
+    const state = stateRaw || {};
+    const split = key.lastIndexOf("|");
+    const resource = split >= 0 ? key.slice(0, split) : key;
+    const pin = split >= 0 ? key.slice(split + 1) : "";
+    const enabled = ["enabled", "used"].includes(String(state.active || "").toLowerCase());
+    if (!enabled) continue;
+    const fn = state.function || "";
+    const descriptor = state.descriptor || "";
+    const logicalPoint = logicalByKey.get(key)?.logicalPoint || null;
+
+    if (resource === "Raspberry Pi Pico") {
+      gpio.push([pin, fn, descriptor, 1]);
+    } else {
+      const match = /MCP23017\s*@\s*(0x[0-9a-f]+)/i.exec(resource);
+      if (match) {
+        const address = match[1].toLowerCase();
+        if (!mcpMap.has(address)) mcpMap.set(address, []);
+        mcpMap.get(address).push([pin, fn, logicalPoint, descriptor, 1]);
+      }
+    }
+    if (logicalPoint && (fn === "Input" || fn === "Output")) {
+      io.push([logicalPoint, fn === "Input" ? 0 : 1, resource, pin, descriptor]);
+    }
+  }
+
+  // Preserve enabled MCP devices even if no pin is currently used.
+  for (const device of configuration?.i2cDevices || []) {
+    if (device?.type !== "MCP23017" || !device.address) continue;
+    const addr = String(device.address).toLowerCase();
+    if (!mcpMap.has(addr)) mcpMap.set(addr, []);
+  }
+
+  return {
+    controller: controllerMap[configuration?.picoType] || "PICO_2_W",
+    gpio,
+    mcp: [...mcpMap.entries()].map(([address, pins]) => [address, pins]),
+    io
+  };
+}
+
+function buildTransferArtifacts() {
+  const verbose = buildAuthoritativeVerboseProject();
+  const optimized = buildOptimizedProgram(verbose.ladder, verbose.project);
+  // The optimized/package CRC is defined over the optimized representation before
+  // its crc member is appended, avoiding a self-referential checksum.
+  const optimizedCRC = crc32Text(JSON.stringify(optimized));
+  optimized.crc = {
+    config: verbose.project.configCRC,
+    ladder: crc32Text(JSON.stringify(optimized.r || [])),
+    package: optimizedCRC
+  };
+  verbose.project.optimizedCRC = optimizedCRC;
+  const verboseText = JSON.stringify(verbose, null, 2) + "\n";
+  const optimizedText = JSON.stringify(optimized, null, 2) + "\n";
+  return {
+    verbose,
+    optimized,
+    verboseText,
+    optimizedText,
+    // Transport CRCs cover the exact bytes written to flash. They are separate
+    // from semantic/source CRCs stored inside the project metadata.
+    sourceTransferCRC: crc32Text(verboseText),
+    optimizedTransferCRC: crc32Text(optimizedText)
+  };
 }
 
 function getConfigurationForProgram() {
@@ -714,7 +894,7 @@ function getConfiguredDigitalIOPoints() {
     const pin = split >= 0 ? key.slice(split + 1) : "";
     return { key, resource, pin, state: state || {} };
   }).filter(row =>
-    row.state.active === "used" &&
+    ["enabled", "used"].includes(String(row.state.active || "").toLowerCase()) &&
     (row.state.function === "Input" || row.state.function === "Output")
   );
 
@@ -1620,6 +1800,16 @@ function createPlacedTileFromProgramBlock(block) {
 }
 
 function loadProgramIntoEditor(program) {
+  // v1.42 authoritative source files wrap the exact ladder/editor source and configuration.
+  if (program?.format === "PICO_PLC_PROJECT") {
+    if (program.formatVersion !== 1 || !program.ladder) throw new Error("Unsupported PLC project source format.");
+    if (program.configuration && typeof program.configuration === "object") {
+      localStorage.setItem("picoPLCConfiguration", JSON.stringify(program.configuration));
+    }
+    currentProgramName = program.project?.title || program.ladder?.program?.name || "Untitled";
+    currentProgramRevision = Number.isInteger(program.project?.revision) ? program.project.revision : 1;
+    program = program.ladder;
+  }
   validateProgramForOpen(program);
 
   cancelPlacementMode();
@@ -1639,13 +1829,14 @@ function loadProgramIntoEditor(program) {
   currentProgramName = program.program?.name || "Untitled";
   currentProgramRevision = Number.isInteger(program.program?.revision)
     ? program.program.revision
-    : 1;
+    : currentProgramRevision || 1;
+  syncProjectIdentityUi();
 
   hideCellHighlight();
 }
 
 function jsonTextForCurrentProgram() {
-  return JSON.stringify(buildProgramObject(), null, 2) + "\n";
+  return JSON.stringify(buildAuthoritativeVerboseProject(), null, 2) + "\n";
 }
 
 // v1.33 optimizer ---------------------------------------------------------
@@ -2324,15 +2515,14 @@ function buildOptimizedProgram(program = buildProgramObject()) {
   crc = (crc ^ 0xFFFFFFFF) >>> 0;
 
   return {
+    format: "PICO_PLC_OPTIMIZED",
     v: 1,
-    p: [program.program?.name || currentProgramName, crc, program.program?.revision || 1],
-    io: physicalIO.map(point => [
-      point.logicalPoint,
-      point.function === "Input" ? 0 : 1,
-      point.resource,
-      point.pin,
-      point.descriptor
-    ]),
+    p: [
+      projectMeta?.title || program.program?.name || currentProgramName,
+      projectMeta?.sourceCRC ?? crc,
+      projectMeta?.revision || program.program?.revision || 1
+    ],
+    cfg: buildOptimizedConfiguration(),
     vc: virtualCoils.map(item => [item.logicalPoint, item.descriptor]),
     r: rungs
   };
@@ -2345,8 +2535,9 @@ function updateOptimizeLogicVisibility() {
 
 async function saveOptimizedLogic() {
   try {
-    const optimized = buildOptimizedProgram(buildProgramObject());
-    const text = JSON.stringify(optimized, null, 2) + "\n";
+    const artifacts = buildTransferArtifacts();
+    const optimized = artifacts.optimized;
+    const text = artifacts.optimizedText;
     const filename = normalizeJsonFilename(`${currentProgramName}_optimized`);
 
     if ("showSaveFilePicker" in window) {
@@ -2393,6 +2584,356 @@ async function saveWithHandle(handle, text) {
   await writable.close();
 }
 
+
+function setPlcState(nextState, detail = "") {
+  plcState = nextState;
+  plcStatus.classList.remove("running", "error", "connecting");
+  const leftRail = ladderCanvas.querySelector(".rail.left");
+  if (nextState === "RUNNING") {
+    plcStatus.classList.add("running");
+    plcStatusText.textContent = detail || "Running";
+    plcRunStopButton.textContent = "Stop PLC, Flush Program";
+    plcRunStopButton.classList.add("stop-mode");
+    leftRail?.classList.add("plc-running");
+  } else {
+    leftRail?.classList.remove("plc-running");
+    clearLivePowerVisualization();
+    plcRunStopButton.textContent = "Upload Logic, Run PLC";
+    plcRunStopButton.classList.remove("stop-mode");
+    if (nextState === "READY_FOR_PROGRAM") plcStatusText.textContent = detail || "Offline — Ready for Program";
+    else if (nextState === "ERROR") { plcStatus.classList.add("error"); plcStatusText.textContent = detail || "Programming Error"; }
+    else if (nextState === "CONNECTING") { plcStatus.classList.add("connecting"); plcStatusText.textContent = detail || "Connecting…"; }
+    else if (nextState === "DISCONNECTED") plcStatusText.textContent = detail || "Disconnected";
+    else plcStatusText.textContent = detail || nextState;
+  }
+  plcRunStopButton.disabled = !plcConnected || !["RUNNING", "READY_FOR_PROGRAM"].includes(nextState);
+}
+
+function clearLivePowerVisualization() {
+  ladderCanvas.querySelectorAll(".placed-tile.live-powered,.placed-tile.live-power-in").forEach(tile => tile.classList.remove("live-powered", "live-power-in"));
+}
+
+function applyLiveSnapshot(snapshot) {
+  if (plcState !== "RUNNING") return;
+  clearLivePowerVisualization();
+  const blocks = snapshot?.blocks || snapshot?.power || {};
+  for (const [id, state] of Object.entries(blocks)) {
+    const tile = ladderCanvas.querySelector(`.placed-tile[data-block-id="${CSS.escape(String(id))}"]`);
+    if (!tile) continue;
+    const powerIn = Array.isArray(state) ? !!state[0] : !!state?.powerIn;
+    const powerOut = Array.isArray(state) ? !!state[1] : !!state?.powerOut;
+    if (powerIn) tile.classList.add("live-power-in");
+    if (powerOut) tile.classList.add("live-powered");
+  }
+}
+
+function openTransferModal() {
+  transferModalBackdrop.classList.remove("hidden");
+  transferProgressBar.classList.remove("error");
+  transferProgressBar.style.width = "0%";
+  transferProgressShell.setAttribute("aria-valuenow", "0");
+  transferLog.innerHTML = "";
+  transferErrorBox.classList.add("hidden");
+  transferErrorBox.textContent = "";
+  transferCloseButton.classList.add("hidden");
+  transferCurrentStage.textContent = "Preparing transfer…";
+}
+
+function setTransferStage(percent, text, completedText = null) {
+  const current = Number(transferProgressShell.getAttribute("aria-valuenow") || "0");
+  const value = Math.max(current, Math.min(100, Math.max(0, Number(percent) || 0)));
+  transferProgressBar.style.width = `${value}%`;
+  transferProgressShell.setAttribute("aria-valuenow", String(value));
+  transferCurrentStage.textContent = text;
+  if (completedText) {
+    const li = document.createElement("li");
+    li.className = "ok";
+    li.textContent = completedText;
+    transferLog.appendChild(li);
+  }
+}
+
+function appendTransferInfo(text, type = "info") {
+  const li = document.createElement("li");
+  li.className = type;
+  li.textContent = text;
+  transferLog.appendChild(li);
+}
+
+function showTransferError(message) {
+  transferProgressBar.classList.add("error");
+  transferCurrentStage.textContent = "Programming failed";
+  transferErrorBox.textContent = message;
+  transferErrorBox.classList.remove("hidden");
+  transferCloseButton.classList.remove("hidden");
+  appendTransferInfo(message, "error");
+}
+
+function completeTransferModal() {
+  setTransferStage(100, "PLC running", "PLC running");
+  setTimeout(() => transferModalBackdrop.classList.add("hidden"), 900);
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  const stride = 0x8000;
+  for (let i = 0; i < bytes.length; i += stride) binary += String.fromCharCode(...bytes.subarray(i, i + stride));
+  return btoa(binary);
+}
+
+function base64ToBytes(text) {
+  const binary = atob(text);
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}
+
+async function sendPlcMessage(message) {
+  if (!plcWriter) throw new Error("PLC is not connected.");
+  const line = JSON.stringify(message) + "\n";
+  await plcWriter.write(new TextEncoder().encode(line));
+}
+
+function waitForPlcMessage(predicate, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const waiter = { predicate, resolve, reject, timer: null };
+    waiter.timer = setTimeout(() => {
+      plcMessageWaiters = plcMessageWaiters.filter(item => item !== waiter);
+      reject(new Error("Timed out waiting for PLC response."));
+    }, timeoutMs);
+    plcMessageWaiters.push(waiter);
+  });
+}
+
+function dispatchPlcMessage(message) {
+  if (!message || typeof message !== "object") return;
+  if (message.type === "LIVE_SNAPSHOT") applyLiveSnapshot(message);
+
+  if (message.type === "PROJECT_SOURCE_BEGIN") {
+    const pendingResolve = incomingProjectSource?.resolve || null;
+    const pendingReject = incomingProjectSource?.reject || null;
+    incomingProjectSource = {
+      chunks: [],
+      expectedCRC: message.transferCRC ?? message.crc ?? null,
+      resolve: pendingResolve,
+      reject: pendingReject
+    };
+  } else if (message.type === "PROJECT_SOURCE_CHUNK" && incomingProjectSource) {
+    incomingProjectSource.chunks[Number(message.seq) || 0] = base64ToBytes(message.data || "");
+  } else if (message.type === "PROJECT_SOURCE_END" && incomingProjectSource) {
+    try {
+      const length = incomingProjectSource.chunks.reduce((n, c) => n + (c?.length || 0), 0);
+      const bytes = new Uint8Array(length);
+      let offset = 0;
+      incomingProjectSource.chunks.forEach(chunk => { if (chunk) { bytes.set(chunk, offset); offset += chunk.length; } });
+      const text = new TextDecoder().decode(bytes);
+      const actual = crc32Text(text);
+      if (incomingProjectSource.expectedCRC != null && actual !== Number(incomingProjectSource.expectedCRC)) throw new Error("Stored project source CRC mismatch.");
+      incomingProjectSource.resolve?.(text);
+    } catch (error) { incomingProjectSource.reject?.(error); }
+  }
+
+  const matched = [];
+  plcMessageWaiters.forEach(waiter => {
+    let ok = false;
+    try { ok = !!waiter.predicate(message); } catch (_) {}
+    if (ok) matched.push(waiter);
+  });
+  matched.forEach(waiter => {
+    clearTimeout(waiter.timer);
+    plcMessageWaiters = plcMessageWaiters.filter(item => item !== waiter);
+    waiter.resolve(message);
+  });
+}
+
+async function serialReadLoop() {
+  while (plcPort?.readable && plcConnected) {
+    plcReader = plcPort.readable.getReader();
+    try {
+      while (plcConnected) {
+        const { value, done } = await plcReader.read();
+        if (done) break;
+        plcReadBuffer += new TextDecoder().decode(value, { stream: true });
+        let newline;
+        while ((newline = plcReadBuffer.indexOf("\n")) >= 0) {
+          const line = plcReadBuffer.slice(0, newline).trim();
+          plcReadBuffer = plcReadBuffer.slice(newline + 1);
+          if (!line) continue;
+          try { dispatchPlcMessage(JSON.parse(line)); } catch (error) { console.warn("Ignoring malformed PLC message", line, error); }
+        }
+      }
+    } catch (error) {
+      if (plcConnected) console.error("PLC serial read failed:", error);
+    } finally {
+      try { plcReader.releaseLock(); } catch (_) {}
+      plcReader = null;
+    }
+    break;
+  }
+  if (plcConnected) disconnectPlc("PLC disconnected");
+}
+
+async function disconnectPlc(detail = "Disconnected") {
+  plcConnected = false;
+  try { await plcWriter?.close?.(); } catch (_) {}
+  try { plcWriter?.releaseLock?.(); } catch (_) {}
+  plcWriter = null;
+  try { await plcPort?.close?.(); } catch (_) {}
+  plcPort = null;
+  connectPlcButton.textContent = "Connect PLC";
+  setPlcState("DISCONNECTED", detail);
+}
+
+async function requestRunningProjectSource(statusMessage) {
+  const sourcePromise = new Promise((resolve, reject) => {
+    incomingProjectSource = { chunks: [], expectedCRC: null, resolve, reject };
+  });
+  await sendPlcMessage({ cmd: "GET_PROJECT_SOURCE" });
+  const text = await Promise.race([
+    sourcePromise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Timed out retrieving the running project source.")), 15000))
+  ]);
+  const project = JSON.parse(text);
+  if (project?.format === "PICO_PLC_PROJECT" && project.project?.sourceCRC != null) {
+    const canonical = JSON.parse(JSON.stringify(project));
+    const expectedSourceCRC = Number(canonical.project.sourceCRC);
+    delete canonical.project.sourceCRC;
+    delete canonical.project.configCRC;
+    delete canonical.project.optimizedCRC;
+    const actualSourceCRC = crc32Text(JSON.stringify(canonical));
+    if (actualSourceCRC !== expectedSourceCRC) throw new Error("Authoritative project source checksum failed.");
+  }
+  loadProgramIntoEditor(project);
+  currentFileHandle = null;
+  syncProjectIdentityUi();
+}
+
+async function connectPlc() {
+  if (plcConnected) { await disconnectPlc(); return; }
+  if (!("serial" in navigator)) {
+    alert("This browser does not provide the Web Serial API required for direct PLC USB communication.");
+    return;
+  }
+  try {
+    setPlcState("CONNECTING", "Connecting…");
+    plcPort = await navigator.serial.requestPort();
+    await plcPort.open({ baudRate: 115200 });
+    plcWriter = plcPort.writable.getWriter();
+    plcConnected = true;
+    connectPlcButton.textContent = "Disconnect PLC";
+    serialReadLoop();
+    await sendPlcMessage({ cmd: "GET_STATUS" });
+    const status = await waitForPlcMessage(msg => msg.type === "STATUS" || msg.plcState, 5000);
+    const state = status.plcState || status.state || "READY_FOR_PROGRAM";
+    if (state === "RUNNING") {
+      setPlcState("RUNNING", `${status.projectTitle || "PLC"} r${status.revision || "?"} — Running`);
+      try { await requestRunningProjectSource(status); } catch (error) { console.warn("Unable to retrieve running project source:", error); }
+      await sendPlcMessage({ cmd: "SUBSCRIBE_LIVE", enabled: true });
+    } else {
+      setPlcState("READY_FOR_PROGRAM", "Offline — Ready for Program");
+    }
+  } catch (error) {
+    console.error("Unable to connect to PLC:", error);
+    await disconnectPlc("Connection failed");
+    if (error?.name !== "NotFoundError") alert(error.message || "Unable to connect to the PLC.");
+  }
+}
+
+async function sendFlashObject(kind, text, crc, progressStart, progressEnd) {
+  const bytes = new TextEncoder().encode(text);
+  const total = Math.max(1, Math.ceil(bytes.length / PLC_TRANSFER_CHUNK_BYTES));
+  await sendPlcMessage({ cmd: `${kind}_BEGIN`, bytes: bytes.length, chunks: total, crc });
+  for (let seq = 0; seq < total; seq++) {
+    const start = seq * PLC_TRANSFER_CHUNK_BYTES;
+    const chunk = bytes.subarray(start, Math.min(bytes.length, start + PLC_TRANSFER_CHUNK_BYTES));
+    await sendPlcMessage({ cmd: `${kind}_CHUNK`, seq, data: bytesToBase64(chunk) });
+    const pct = progressStart + ((seq + 1) / total) * (progressEnd - progressStart);
+    setTransferStage(pct, `Sending ${kind === "SOURCE" ? "authoritative project source" : "optimized program"}…`);
+    const ack = await waitForPlcMessage(msg => msg.type === "ACK" && msg.section === kind && Number(msg.seq) === seq, 10000);
+    if (ack.status === "ERROR") throw new Error(ack.message || `${kind} chunk ${seq} rejected.`);
+  }
+  await sendPlcMessage({ cmd: `${kind}_END` });
+  const result = await waitForPlcMessage(msg => msg.stage === kind && ["OK", "ERROR"].includes(msg.status), 15000);
+  if (result.status !== "OK") throw new Error(result.message || `${kind} verification failed.`);
+}
+
+async function recoverAfterProgrammingError(originalError) {
+  showTransferError(originalError?.message || "PLC programming failed.");
+  plcRunStopButton.disabled = true;
+  try {
+    await sendPlcMessage({ cmd: "STOP_RESET_FLUSH" });
+    appendTransferInfo("PLC recovery requested");
+    await waitForPlcMessage(msg => msg.plcState === "READY_FOR_PROGRAM", 15000);
+    appendTransferInfo("PLC stopped, reset and flushed — ready for program", "ok");
+    setPlcState("READY_FOR_PROGRAM", "Offline — Ready for Program");
+    plcRunStopButton.disabled = false;
+  } catch (recoveryError) {
+    setPlcState("ERROR", "Recovery not confirmed");
+    transferErrorBox.textContent += `\nRecovery confirmation failed: ${recoveryError.message}`;
+  }
+}
+
+async function uploadLogicAndRun() {
+  if (!plcConnected || plcState !== "READY_FOR_PROGRAM") return;
+  plcRunStopButton.disabled = true;
+  openTransferModal();
+  try {
+    setTransferStage(3, "Requesting programming mode…");
+    await sendPlcMessage({ cmd: "PROGRAM_REQUEST" });
+    await waitForPlcMessage(msg => msg.plcState === "READY_FOR_PROGRAM", 10000);
+    setTransferStage(10, "PLC ready for program", "PLC stopped, reset and program RAM flushed");
+
+    setTransferStage(14, "Building authoritative and optimized project data…");
+    const artifacts = buildTransferArtifacts();
+    appendTransferInfo(`Project ${currentProgramName} r${currentProgramRevision} prepared`, "ok");
+
+    await sendPlcMessage({ cmd: "PROJECT_METADATA", project: artifacts.verbose.project });
+    setTransferStage(18, "Project metadata sent", "Project metadata accepted for transfer");
+
+    await sendFlashObject("SOURCE", artifacts.verboseText, artifacts.sourceTransferCRC, 18, 45);
+    setTransferStage(45, "Authoritative source verified", "Verbose project source stored and verified in flash");
+
+    await sendFlashObject("OPTIMIZED", artifacts.optimizedText, artifacts.optimizedTransferCRC, 45, 72);
+    setTransferStage(72, "Optimized program verified", "Optimized program stored and verified in flash");
+
+    await sendPlcMessage({ cmd: "BUILD_RUNTIME_FROM_FLASH" });
+    setTransferStage(78, "Reading optimized program from flash and compiling runtime…");
+    let result = await waitForPlcMessage(msg => msg.stage === "COMPILE" && ["OK", "ERROR"].includes(msg.status), 20000);
+    if (result.status !== "OK") throw new Error(result.message || "Runtime compilation failed.");
+    setTransferStage(87, "Runtime compiled", "Runtime program compiled from flash");
+
+    result = await waitForPlcMessage(msg => msg.stage === "VALIDATE" && ["OK", "ERROR"].includes(msg.status), 15000);
+    if (result.status !== "OK") throw new Error(result.message || "PLC runtime validation failed.");
+    setTransferStage(94, "Program validated", "Configuration, references and checksums validated");
+
+    await sendPlcMessage({ cmd: "RUN" });
+    result = await waitForPlcMessage(msg => msg.plcState === "RUNNING", 15000);
+    setPlcState("RUNNING", `${currentProgramName} r${currentProgramRevision} — Running`);
+    await sendPlcMessage({ cmd: "SUBSCRIBE_LIVE", enabled: true });
+    completeTransferModal();
+    plcRunStopButton.disabled = false;
+  } catch (error) {
+    console.error("PLC programming failed:", error);
+    await recoverAfterProgrammingError(error);
+  }
+}
+
+async function stopAndFlushPlc() {
+  if (!plcConnected || plcState !== "RUNNING") return;
+  plcRunStopButton.disabled = true;
+  try {
+    await sendPlcMessage({ cmd: "SUBSCRIBE_LIVE", enabled: false });
+    await sendPlcMessage({ cmd: "STOP_RESET_FLUSH" });
+    await waitForPlcMessage(msg => msg.plcState === "READY_FOR_PROGRAM", 15000);
+    setPlcState("READY_FOR_PROGRAM", "Offline — Ready for Program");
+    plcRunStopButton.disabled = false;
+  } catch (error) {
+    console.error("Unable to stop/flush PLC:", error);
+    setPlcState("ERROR", "Stop/flush not confirmed");
+    alert(error.message || "The PLC did not confirm Stop/Flush.");
+  }
+}
+
 async function saveProgram(saveAs = false) {
   const text = jsonTextForCurrentProgram();
 
@@ -2407,6 +2948,7 @@ async function saveProgram(saveAs = false) {
           }]
         });
         currentProgramName = currentFileHandle.name.replace(/\.json$/i, "") || currentProgramName;
+        syncProjectIdentityUi();
       }
 
       // Rebuild after naming so program.name follows Save As.
@@ -2439,7 +2981,8 @@ async function openProgram() {
       const program = JSON.parse(await file.text());
       loadProgramIntoEditor(program);
       currentFileHandle = handle;
-      currentProgramName = file.name.replace(/\.json$/i, "") || currentProgramName;
+      currentProgramName = program?.project?.title || file.name.replace(/\.json$/i, "") || currentProgramName;
+      syncProjectIdentityUi();
       return;
     }
 
@@ -2459,7 +3002,8 @@ async function openProgram() {
         const program = JSON.parse(await file.text());
         loadProgramIntoEditor(program);
         currentFileHandle = null;
-        currentProgramName = file.name.replace(/\.json$/i, "") || currentProgramName;
+        currentProgramName = program?.project?.title || file.name.replace(/\.json$/i, "") || currentProgramName;
+        syncProjectIdentityUi();
       } catch (error) {
         console.error("Unable to open ladder program:", error);
         alert(error.message || "Unable to open the ladder program.");
@@ -2502,6 +3046,20 @@ openButton.addEventListener("click", openProgram);
 saveButton.addEventListener("click", () => saveProgram(false));
 saveAsButton.addEventListener("click", () => saveProgram(true));
 optimizeLogicButton.addEventListener("click", saveOptimizedLogic);
+connectPlcButton.addEventListener("click", connectPlc);
+plcRunStopButton.addEventListener("click", () => {
+  if (plcState === "RUNNING") stopAndFlushPlc();
+  else if (plcState === "READY_FOR_PROGRAM") uploadLogicAndRun();
+});
+projectTitleInput.addEventListener("input", () => {
+  currentProgramName = projectTitleInput.value.trim() || "Untitled";
+});
+projectRevisionInput.addEventListener("change", () => {
+  const revision = Math.max(1, Math.min(65535, parseInt(projectRevisionInput.value, 10) || 1));
+  currentProgramRevision = revision;
+  projectRevisionInput.value = String(revision);
+});
+transferCloseButton.addEventListener("click", () => transferModalBackdrop.classList.add("hidden"));
 
 function renderPalette(category) {
   tileList.innerHTML = "";
@@ -3643,6 +4201,8 @@ workspace.addEventListener("contextmenu", event => {
 });
 
 updateCanvasHeight();
+syncProjectIdentityUi();
+setPlcState("DISCONNECTED");
 setEditorEnabled(false);
 </script>
 </body>
