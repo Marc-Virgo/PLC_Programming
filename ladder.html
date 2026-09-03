@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.43</title>
+  <title>Ladder Logic — v1.44</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile-icon{display:block;max-width:100%;height:40px;width:auto;object-fit:contain;pointer-events:none}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -336,7 +336,7 @@
 }
 
 
-/* v1.43 canonical configuration integration, project identity, PLC runtime controls, transfer progress, and live monitoring */
+/* v1.44 canonical configuration integration, project identity, PLC runtime controls, transfer progress, and live monitoring */
 .plc-button{border:0;border-radius:8px;padding:11px 14px;font-size:.92rem;font-weight:700;cursor:pointer;background:#1d4ed8;color:white;white-space:nowrap}
 .plc-button:hover:not(:disabled){background:#1e40af}.plc-button.stop-mode{background:#991b1b}.plc-button.stop-mode:hover:not(:disabled){background:#7f1d1d}.plc-button:disabled{opacity:.48;cursor:not-allowed}
 .plc-connect-button{background:#475569}.plc-connect-button:hover:not(:disabled){background:#334155}
@@ -351,7 +351,7 @@
 <body>
 <div class="app">
 <header class="topbar">
-  <div class="title">Ladder Logic — v1.43</div>
+  <div class="title">Ladder Logic — v1.44</div>
 
   <div class="ribbon-main-controls">
     <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button>
@@ -638,7 +638,7 @@ let currentFileHandle = null;
 let currentProgramName = "Untitled";
 let currentProgramRevision = 1;
 
-// v1.43 PLC connection/runtime state. V1 has no stopped-valid-RAM state:
+// v1.44 PLC connection/runtime state. V1 has no stopped-valid-RAM state:
 // READY_FOR_PROGRAM means executable RAM is empty; RUNNING means a complete valid program is active.
 let plcPort = null;
 let plcReader = null;
@@ -647,6 +647,8 @@ let plcReadBuffer = "";
 let plcConnected = false;
 let plcState = "DISCONNECTED";
 let plcMessageWaiters = [];
+let plcMessageBacklog = [];
+const PLC_MESSAGE_BACKLOG_LIMIT = 64;
 let incomingProjectSource = null;
 const PLC_TRANSFER_CHUNK_BYTES = 768;
 
@@ -757,7 +759,7 @@ function buildOptimizedConfiguration(configuration = getRawPlcConfiguration()) {
   const controllerMap = { pico:"PICO", pico_w:"PICO_W", pico2:"PICO_2", pico2_w:"PICO_2_W" };
   const model = configuration?.controller?.model || configuration?.picoType || "pico2_w";
 
-  // v1.43: Prefer configuration.html v1.7+ canonical arrays.  Legacy ioState is
+  // v1.44: Prefer configuration.html v1.7+ canonical arrays.  Legacy ioState is
   // retained only as a migration fallback for projects saved by older versions.
   if (configuration?.schema === "PICO_PLC_CONFIGURATION" && Array.isArray(configuration.gpio)) {
     const gpio = configuration.gpio
@@ -906,7 +908,7 @@ function getConfiguredDigitalIOPoints() {
   const config = getRawPlcConfiguration();
   if (!config || !Object.keys(config).length) return [];
 
-  // v1.43 canonical path: configuration.html assigns and persists the logical
+  // v1.44 canonical path: configuration.html assigns and persists the logical
   // point. ladder.html must never independently renumber physical I/O.
   if (config?.schema === "PICO_PLC_CONFIGURATION" && Array.isArray(config.io)) {
     return config.io
@@ -1859,7 +1861,7 @@ function createPlacedTileFromProgramBlock(block) {
 }
 
 function loadProgramIntoEditor(program) {
-  // v1.43 authoritative source files wrap the exact ladder/editor source and canonical configuration.
+  // v1.44 authoritative source files wrap the exact ladder/editor source and canonical configuration.
   if (program?.format === "PICO_PLC_PROJECT") {
     if (program.formatVersion !== 1 || !program.ladder) throw new Error("Unsupported PLC project source format.");
     if (program.configuration && typeof program.configuration === "object") {
@@ -2753,7 +2755,19 @@ async function sendPlcMessage(message) {
   await plcWriter.write(new TextEncoder().encode(line));
 }
 
+function takeBackloggedPlcMessage(predicate) {
+  for (let i = 0; i < plcMessageBacklog.length; i++) {
+    let ok = false;
+    try { ok = !!predicate(plcMessageBacklog[i]); } catch (_) {}
+    if (ok) return plcMessageBacklog.splice(i, 1)[0];
+  }
+  return null;
+}
+
 function waitForPlcMessage(predicate, timeoutMs = 10000) {
+  const queued = takeBackloggedPlcMessage(predicate);
+  if (queued) return Promise.resolve(queued);
+
   return new Promise((resolve, reject) => {
     const waiter = { predicate, resolve, reject, timer: null };
     waiter.timer = setTimeout(() => {
@@ -2764,9 +2778,36 @@ function waitForPlcMessage(predicate, timeoutMs = 10000) {
   });
 }
 
+async function sendPlcMessageAndWait(message, predicate, timeoutMs = 10000) {
+  let waiter = null;
+  let timer = null;
+  const response = new Promise((resolve, reject) => {
+    const queued = takeBackloggedPlcMessage(predicate);
+    if (queued) { resolve(queued); return; }
+    waiter = { predicate, resolve, reject, timer: null };
+    timer = setTimeout(() => {
+      plcMessageWaiters = plcMessageWaiters.filter(item => item !== waiter);
+      reject(new Error("Timed out waiting for PLC response."));
+    }, timeoutMs);
+    waiter.timer = timer;
+    plcMessageWaiters.push(waiter);
+  });
+  try {
+    await sendPlcMessage(message);
+  } catch (error) {
+    if (waiter) {
+      clearTimeout(timer);
+      plcMessageWaiters = plcMessageWaiters.filter(item => item !== waiter);
+      waiter.reject(error);
+    }
+    throw error;
+  }
+  return await response;
+}
+
 function dispatchPlcMessage(message) {
   if (!message || typeof message !== "object") return;
-  if (message.type === "LIVE_SNAPSHOT") applyLiveSnapshot(message);
+  if (message.type === "LIVE_SNAPSHOT") { applyLiveSnapshot(message); return; }
 
   if (message.type === "PROJECT_SOURCE_BEGIN") {
     const pendingResolve = incomingProjectSource?.resolve || null;
@@ -2777,8 +2818,10 @@ function dispatchPlcMessage(message) {
       resolve: pendingResolve,
       reject: pendingReject
     };
+    return;
   } else if (message.type === "PROJECT_SOURCE_CHUNK" && incomingProjectSource) {
     incomingProjectSource.chunks[Number(message.seq) || 0] = base64ToBytes(message.data || "");
+    return;
   } else if (message.type === "PROJECT_SOURCE_END" && incomingProjectSource) {
     try {
       const length = incomingProjectSource.chunks.reduce((n, c) => n + (c?.length || 0), 0);
@@ -2790,6 +2833,7 @@ function dispatchPlcMessage(message) {
       if (incomingProjectSource.expectedCRC != null && actual !== Number(incomingProjectSource.expectedCRC)) throw new Error("Stored project source CRC mismatch.");
       incomingProjectSource.resolve?.(text);
     } catch (error) { incomingProjectSource.reject?.(error); }
+    return;
   }
 
   const matched = [];
@@ -2798,11 +2842,18 @@ function dispatchPlcMessage(message) {
     try { ok = !!waiter.predicate(message); } catch (_) {}
     if (ok) matched.push(waiter);
   });
-  matched.forEach(waiter => {
-    clearTimeout(waiter.timer);
-    plcMessageWaiters = plcMessageWaiters.filter(item => item !== waiter);
-    waiter.resolve(message);
-  });
+  if (matched.length) {
+    matched.forEach(waiter => {
+      clearTimeout(waiter.timer);
+      plcMessageWaiters = plcMessageWaiters.filter(item => item !== waiter);
+      waiter.resolve(message);
+    });
+    return;
+  }
+  plcMessageBacklog.push(message);
+  if (plcMessageBacklog.length > PLC_MESSAGE_BACKLOG_LIMIT) {
+    plcMessageBacklog.splice(0, plcMessageBacklog.length - PLC_MESSAGE_BACKLOG_LIMIT);
+  }
 }
 
 async function serialReadLoop() {
@@ -2834,6 +2885,13 @@ async function serialReadLoop() {
 
 async function disconnectPlc(detail = "Disconnected") {
   plcConnected = false;
+  plcMessageBacklog = [];
+  plcMessageWaiters.forEach(waiter => {
+    clearTimeout(waiter.timer);
+    try { waiter.reject(new Error("PLC disconnected.")); } catch (_) {}
+  });
+  plcMessageWaiters = [];
+  incomingProjectSource = null;
   try { await plcWriter?.close?.(); } catch (_) {}
   try { plcWriter?.releaseLock?.(); } catch (_) {}
   plcWriter = null;
@@ -2881,8 +2939,11 @@ async function connectPlc() {
     plcConnected = true;
     connectPlcButton.textContent = "Disconnect PLC";
     serialReadLoop();
-    await sendPlcMessage({ cmd: "GET_STATUS" });
-    const status = await waitForPlcMessage(msg => msg.type === "STATUS" || msg.plcState, 5000);
+    const status = await sendPlcMessageAndWait(
+      { cmd: "GET_STATUS" },
+      msg => msg.type === "STATUS" || msg.plcState,
+      5000
+    );
     const state = status.plcState || status.state || "READY_FOR_PROGRAM";
     if (state === "RUNNING") {
       setPlcState("RUNNING", `${status.projectTitle || "PLC"} r${status.revision || "?"} — Running`);
@@ -2905,14 +2966,21 @@ async function sendFlashObject(kind, text, crc, progressStart, progressEnd) {
   for (let seq = 0; seq < total; seq++) {
     const start = seq * PLC_TRANSFER_CHUNK_BYTES;
     const chunk = bytes.subarray(start, Math.min(bytes.length, start + PLC_TRANSFER_CHUNK_BYTES));
-    await sendPlcMessage({ cmd: `${kind}_CHUNK`, seq, data: bytesToBase64(chunk) });
+    const ackPromise = sendPlcMessageAndWait(
+      { cmd: `${kind}_CHUNK`, seq, data: bytesToBase64(chunk) },
+      msg => msg.type === "ACK" && msg.section === kind && Number(msg.seq) === seq,
+      10000
+    );
     const pct = progressStart + ((seq + 1) / total) * (progressEnd - progressStart);
     setTransferStage(pct, `Sending ${kind === "SOURCE" ? "authoritative project source" : "optimized program"}…`);
-    const ack = await waitForPlcMessage(msg => msg.type === "ACK" && msg.section === kind && Number(msg.seq) === seq, 10000);
+    const ack = await ackPromise;
     if (ack.status === "ERROR") throw new Error(ack.message || `${kind} chunk ${seq} rejected.`);
   }
-  await sendPlcMessage({ cmd: `${kind}_END` });
-  const result = await waitForPlcMessage(msg => msg.stage === kind && ["OK", "ERROR"].includes(msg.status), 15000);
+  const result = await sendPlcMessageAndWait(
+    { cmd: `${kind}_END` },
+    msg => msg.stage === kind && ["OK", "ERROR"].includes(msg.status),
+    15000
+  );
   if (result.status !== "OK") throw new Error(result.message || `${kind} verification failed.`);
 }
 
@@ -2920,9 +2988,12 @@ async function recoverAfterProgrammingError(originalError) {
   showTransferError(originalError?.message || "PLC programming failed.");
   plcRunStopButton.disabled = true;
   try {
-    await sendPlcMessage({ cmd: "STOP_RESET_FLUSH" });
     appendTransferInfo("PLC recovery requested");
-    await waitForPlcMessage(msg => msg.plcState === "READY_FOR_PROGRAM", 15000);
+    await sendPlcMessageAndWait(
+      { cmd: "STOP_RESET_FLUSH" },
+      msg => msg.plcState === "READY_FOR_PROGRAM",
+      15000
+    );
     appendTransferInfo("PLC stopped, reset and flushed — ready for program", "ok");
     setPlcState("READY_FOR_PROGRAM", "Offline — Ready for Program");
     plcRunStopButton.disabled = false;
@@ -2938,8 +3009,11 @@ async function uploadLogicAndRun() {
   openTransferModal();
   try {
     setTransferStage(3, "Requesting programming mode…");
-    await sendPlcMessage({ cmd: "PROGRAM_REQUEST" });
-    await waitForPlcMessage(msg => msg.plcState === "READY_FOR_PROGRAM", 10000);
+    await sendPlcMessageAndWait(
+      { cmd: "PROGRAM_REQUEST" },
+      msg => msg.plcState === "READY_FOR_PROGRAM",
+      10000
+    );
     setTransferStage(10, "PLC ready for program", "PLC stopped, reset and program RAM flushed");
 
     setTransferStage(14, "Building authoritative and optimized project data…");
@@ -2955,9 +3029,12 @@ async function uploadLogicAndRun() {
     await sendFlashObject("OPTIMIZED", artifacts.optimizedText, artifacts.optimizedTransferCRC, 45, 72);
     setTransferStage(72, "Optimized program verified", "Optimized program stored and verified in flash");
 
-    await sendPlcMessage({ cmd: "BUILD_RUNTIME_FROM_FLASH" });
     setTransferStage(78, "Reading optimized program from flash and compiling runtime…");
-    let result = await waitForPlcMessage(msg => msg.stage === "COMPILE" && ["OK", "ERROR"].includes(msg.status), 20000);
+    let result = await sendPlcMessageAndWait(
+      { cmd: "BUILD_RUNTIME_FROM_FLASH" },
+      msg => msg.stage === "COMPILE" && ["OK", "ERROR"].includes(msg.status),
+      20000
+    );
     if (result.status !== "OK") throw new Error(result.message || "Runtime compilation failed.");
     setTransferStage(87, "Runtime compiled", "Runtime program compiled from flash");
 
@@ -2965,8 +3042,11 @@ async function uploadLogicAndRun() {
     if (result.status !== "OK") throw new Error(result.message || "PLC runtime validation failed.");
     setTransferStage(94, "Program validated", "Configuration, references and checksums validated");
 
-    await sendPlcMessage({ cmd: "RUN" });
-    result = await waitForPlcMessage(msg => msg.plcState === "RUNNING", 15000);
+    result = await sendPlcMessageAndWait(
+      { cmd: "RUN" },
+      msg => msg.plcState === "RUNNING",
+      15000
+    );
     setPlcState("RUNNING", `${currentProgramName} r${currentProgramRevision} — Running`);
     await sendPlcMessage({ cmd: "SUBSCRIBE_LIVE", enabled: true });
     completeTransferModal();
@@ -2982,8 +3062,11 @@ async function stopAndFlushPlc() {
   plcRunStopButton.disabled = true;
   try {
     await sendPlcMessage({ cmd: "SUBSCRIBE_LIVE", enabled: false });
-    await sendPlcMessage({ cmd: "STOP_RESET_FLUSH" });
-    await waitForPlcMessage(msg => msg.plcState === "READY_FOR_PROGRAM", 15000);
+    await sendPlcMessageAndWait(
+      { cmd: "STOP_RESET_FLUSH" },
+      msg => msg.plcState === "READY_FOR_PROGRAM",
+      15000
+    );
     setPlcState("READY_FOR_PROGRAM", "Offline — Ready for Program");
     plcRunStopButton.disabled = false;
   } catch (error) {
