@@ -2,21 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.7</title>
+<title>PLC Configuration v1.8</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
 select,input[type=text]{box-sizing:border-box;padding:9px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#111827}select{width:100%;max-width:420px;margin-top:8px}.device-list{display:grid;gap:10px;margin-top:16px}
 .device-row{display:grid;grid-template-columns:42px 1fr 100px;gap:10px;align-items:center;border:1px solid #d1d5db;border-radius:10px;padding:12px}.device-row.enabled{border-color:#111827;background:#f9fafb}.address{font-family:Consolas,monospace;text-align:right;font-weight:700}
 .summary{margin-top:16px;padding:14px;background:#eef2ff;border-radius:10px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
-button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;color:white;font-size:1rem;font-weight:700;text-decoration:none;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}
+button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;color:white;font-size:1rem;font-weight:700;text-decoration:none;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.danger-button{background:#b91c1c}.danger-button:hover{background:#991b1b}
 .tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid #cbd5e1;margin-bottom:20px}.tab-button{border-radius:9px 9px 0 0;background:#e5e7eb;color:#111827;padding:11px 20px}.tab-button.active{background:#111827;color:#fff}.tab-panel{display:none}.tab-panel.active{display:block}
 .table-wrap{overflow-x:auto}.io-table{width:100%;border-collapse:collapse;min-width:920px}.io-table th,.io-table td{border:1px solid #d1d5db;padding:8px;vertical-align:middle}.io-table th{background:#e5e7eb;text-align:left;white-space:nowrap}.io-table tbody tr:nth-child(even){background:#f9fafb}.io-table input[type=text]{width:100%;min-width:190px}.io-table select{margin:0;min-width:130px;max-width:none}.logical{font-family:Consolas,monospace;font-weight:700;white-space:nowrap}.resource{font-weight:700;white-space:nowrap}.pin{font-family:Consolas,monospace;white-space:nowrap}.status-note{font-size:.9rem;color:#4b5563;margin-top:10px}.placeholder{border:2px dashed #cbd5e1;border-radius:10px;padding:22px;background:#f8fafc}
 @media(max-width:650px){header{padding:14px 16px}header h1{font-size:1.35rem}main{margin:14px auto}.card{padding:16px}.tab-button{flex:1 1 30%;padding:10px 8px;font-size:.92rem}}
 </style>
 </head>
 <body>
-<header><h1 id="pageHeading">PLC Configuration v1.7</h1></header>
+<header><h1 id="pageHeading">PLC Configuration v1.8</h1></header>
 <main>
 <nav class="tabs" aria-label="PLC configuration sections">
 <button class="tab-button active" type="button" data-tab="hardware">Hardware</button>
@@ -62,6 +62,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 <tbody id="digitalBody"></tbody>
 </table>
 </div>
+<div class="actions"><button id="resetIoButton" class="danger-button" type="button">Reset I/O</button></div>
 <p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Disabled. Physical input/output logical addresses are allocated monotonically and are not reused automatically, so existing ladder bindings cannot silently change meaning. Once a Function is selected and a Descriptor is present, Active is automatically set to Enabled. Pico functions other than ordinary Input or Output use Logical Point <strong>n/a</strong> but may still be Enabled. Selecting an I²C, UART, or SPI function automatically configures the matching pin(s), fills each communication pin Descriptor with its selected function and physical Pico pin number, and disables alternate pin groups for the same peripheral until it is released.</p>
 </section>
 </div>
@@ -81,7 +82,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.7';
+const CONFIG_VERSION='1.8';
 const CONFIG_SCHEMA='PICO_PLC_CONFIGURATION';
 const CONFIG_SCHEMA_VERSION=1;
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
@@ -490,6 +491,21 @@ function validateConfiguration(config){
  });
  return [...new Set(errors)];
 }
+function resetDigitalIO(){
+ const confirmed=confirm('Reset all Digital I/O definitions to their defaults?\n\nThis will clear all logical-point assignments, functions, descriptors and Enabled/Disabled selections, reset I/O numbering to I:00001 and O:00001, and delete the configuration saved in this browser. This cannot be undone.');
+ if(!confirmed)return;
+
+ // Reset the complete I/O definition state while preserving the hardware
+ // selections currently shown on the Hardware tab. The saved canonical
+ // configuration is removed, so a later page reload starts from defaults.
+ ioState={};
+ logicalAllocation={nextInput:1,nextOutput:1};
+ activeCommunicationGroups={};
+ applyingCommunicationGroup=false;
+ localStorage.removeItem('picoPLCConfiguration');
+ rebuildDigitalTable();
+ alert('Digital I/O has been reset to defaults and the saved browser configuration has been cleared.');
+}
 function saveConfiguration(){
  try{
    const config=buildCanonicalConfiguration();
@@ -544,6 +560,7 @@ tabs.forEach(btn=>btn.addEventListener('click',()=>{
 }));
 devices.forEach(d=>d.addEventListener('change',updateSummary));
 document.getElementById('saveButton').addEventListener('click',saveConfiguration);
+document.getElementById('resetIoButton').addEventListener('click',resetDigitalIO);
 loadConfiguration();
 </script>
 </body>
