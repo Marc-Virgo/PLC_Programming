@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.8</title>
+<title>PLC Configuration v1.9</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
-select,input[type=text]{box-sizing:border-box;padding:9px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#111827}select{width:100%;max-width:420px;margin-top:8px}.device-list{display:grid;gap:10px;margin-top:16px}
+select,input[type=text]{box-sizing:border-box;padding:9px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#111827}select{width:100%;max-width:420px;margin-top:8px}.device-list{display:grid;gap:10px;margin-top:16px}.hardware-options{display:grid;gap:10px;margin-top:16px}.hardware-option{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #d1d5db;border-radius:9px;background:#f8fafc}.hardware-option input{width:18px;height:18px}.hardware-note{font-size:.9rem;color:#4b5563;margin-top:10px}
 .device-row{display:grid;grid-template-columns:42px 1fr 100px;gap:10px;align-items:center;border:1px solid #d1d5db;border-radius:10px;padding:12px}.device-row.enabled{border-color:#111827;background:#f9fafb}.address{font-family:Consolas,monospace;text-align:right;font-weight:700}
 .summary{margin-top:16px;padding:14px;background:#eef2ff;border-radius:10px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
 button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;color:white;font-size:1rem;font-weight:700;text-decoration:none;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.danger-button{background:#b91c1c}.danger-button:hover{background:#991b1b}
@@ -16,7 +16,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </style>
 </head>
 <body>
-<header><h1 id="pageHeading">PLC Configuration v1.8</h1></header>
+<header><h1 id="pageHeading">PLC Configuration v1.9</h1></header>
 <main>
 <nav class="tabs" aria-label="PLC configuration sections">
 <button class="tab-button active" type="button" data-tab="hardware">Hardware</button>
@@ -34,10 +34,20 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 <option value="pico2">Raspberry Pi Pico 2 (RP2350)</option>
 <option value="pico2_w">Raspberry Pi Pico 2 W (RP2350)</option>
 </select>
+<div class="hardware-options" aria-label="Pico digital input defaults">
+<label class="hardware-option"><input id="picoInputsActiveLow" type="checkbox" checked><span><strong>Inputs Active Low</strong> — a LOW electrical level is interpreted as logical TRUE.</span></label>
+<label class="hardware-option"><input id="picoInputsPullUp" type="checkbox" checked><span><strong>Enable Internal Pull-up Resistors</strong> on Pico GPIO configured as digital inputs.</span></label>
+</div>
+<p class="hardware-note">Default PLC input behaviour is Active Low with the Pico's internal pull-up enabled. This suits dry-contact switches wired from the input to ground.</p>
 </section>
 <section class="card">
 <h2>I²C I/O Expansion Devices</h2>
 <p>Enable each MCP23017 installed on the I²C bus. The standard MCP23017 address range is shown below.</p>
+<div class="hardware-options" aria-label="MCP23017 digital input defaults">
+<label class="hardware-option"><input id="mcpInputsActiveLow" type="checkbox" checked><span><strong>Inputs Active Low</strong> — a LOW MCP23017 input level is interpreted as logical TRUE.</span></label>
+<label class="hardware-option"><input id="mcpInputsPullUp" type="checkbox" checked><span><strong>Enable Internal Pull-up Resistors</strong> on MCP23017 pins configured as digital inputs.</span></label>
+</div>
+<p class="hardware-note">MCP23017 input pull-ups use the device's GPPU registers. The MCP23017 provides internal pull-up resistors, but not internal pull-down resistors.</p>
 <div class="device-list">
 <label class="device-row"><input type="checkbox" class="mcp" data-address="0x20"><span>MCP23017 I/O Expander 1</span><span class="address">0x20</span></label>
 <label class="device-row"><input type="checkbox" class="mcp" data-address="0x21"><span>MCP23017 I/O Expander 2</span><span class="address">0x21</span></label>
@@ -82,13 +92,17 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.8';
+const CONFIG_VERSION='1.9';
 const CONFIG_SCHEMA='PICO_PLC_CONFIGURATION';
 const CONFIG_SCHEMA_VERSION=1;
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
 document.getElementById('pageHeading').textContent=`PLC Configuration v${CONFIG_VERSION}`;
 
 const picoType=document.getElementById('picoType');
+const picoInputsActiveLow=document.getElementById('picoInputsActiveLow');
+const picoInputsPullUp=document.getElementById('picoInputsPullUp');
+const mcpInputsActiveLow=document.getElementById('mcpInputsActiveLow');
+const mcpInputsPullUp=document.getElementById('mcpInputsPullUp');
 const devices=[...document.querySelectorAll('.mcp')];
 const summary=document.getElementById('summary');
 const digitalBody=document.getElementById('digitalBody');
@@ -460,11 +474,41 @@ function buildCanonicalConfiguration(){
    editorVersion:CONFIG_VERSION,
    version:CONFIG_VERSION,
    picoType:picoType.value,
-   controller:{model:picoType.value},
-   i2cDevices:enabledMcp.map(address=>({type:'MCP23017',address})),
+   controller:{
+     model:picoType.value,
+     digitalInputDefaults:{
+       activeLow:!!picoInputsActiveLow.checked,
+       pullUp:!!picoInputsPullUp.checked
+     }
+   },
+   inputDefaults:{
+     pico:{
+       activeLow:!!picoInputsActiveLow.checked,
+       pullUp:!!picoInputsPullUp.checked
+     },
+     mcp23017:{
+       activeLow:!!mcpInputsActiveLow.checked,
+       pullUp:!!mcpInputsPullUp.checked
+     }
+   },
+   i2cDevices:enabledMcp.map(address=>({
+     type:'MCP23017',
+     address,
+     digitalInputDefaults:{
+       activeLow:!!mcpInputsActiveLow.checked,
+       pullUp:!!mcpInputsPullUp.checked
+     }
+   })),
    allocation:{...logicalAllocation},
    gpio:gpio.sort((a,b)=>a.gpio-b.gpio),
-   mcp23017:[...mcpMap.entries()].map(([address,pins])=>({address,pins})),
+   mcp23017:[...mcpMap.entries()].map(([address,pins])=>({
+     address,
+     digitalInputDefaults:{
+       activeLow:!!mcpInputsActiveLow.checked,
+       pullUp:!!mcpInputsPullUp.checked
+     },
+     pins
+   })),
    io:io.sort((a,b)=>a.logicalPoint.localeCompare(b.logicalPoint)),
    // ioState remains for backward compatibility with ladder.html while the
    // canonical arrays above become the long-term Pico/browser contract.
@@ -542,6 +586,16 @@ function loadConfiguration(){
    const config=JSON.parse(saved);
    if(config.picoType)picoType.value=config.picoType;
    else if(config.controller?.model)picoType.value=config.controller.model;
+
+   const picoDefaults=config.inputDefaults?.pico||config.controller?.digitalInputDefaults||{};
+   picoInputsActiveLow.checked=picoDefaults.activeLow!==false;
+   picoInputsPullUp.checked=picoDefaults.pullUp!==false;
+
+   const firstMcp=(config.i2cDevices||config.mcp23017||[])[0];
+   const mcpDefaults=config.inputDefaults?.mcp23017||firstMcp?.digitalInputDefaults||{};
+   mcpInputsActiveLow.checked=mcpDefaults.activeLow!==false;
+   mcpInputsPullUp.checked=mcpDefaults.pullUp!==false;
+
    const enabled=new Set((config.i2cDevices||config.mcp23017||[]).map(x=>x.address));
    devices.forEach(d=>d.checked=enabled.has(d.dataset.address));
    if(config.ioState && typeof config.ioState==='object')ioState=config.ioState;
