@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.50</title>
+  <title>Ladder Logic — v1.51</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile-icon{display:block;max-width:100%;height:40px;width:auto;object-fit:contain;pointer-events:none}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -336,11 +336,11 @@
 }
 
 
-/* v1.50 canonical configuration integration, project identity, PLC runtime controls, transfer progress, and live monitoring */
+/* v1.51 canonical configuration integration, project identity, PLC runtime controls, transfer progress, and live monitoring */
 .plc-button{border:0;border-radius:8px;padding:11px 14px;font-size:.92rem;font-weight:700;cursor:pointer;background:#1d4ed8;color:white;white-space:nowrap}
 .plc-button:hover:not(:disabled){background:#1e40af}.plc-button.stop-mode{background:#991b1b}.plc-button.stop-mode:hover:not(:disabled){background:#7f1d1d}.plc-button:disabled{opacity:.48;cursor:not-allowed}
 .plc-connect-button{background:#475569}.plc-connect-button:hover:not(:disabled){background:#334155}
-.project-strip{display:flex;align-items:center;gap:10px;min-width:0;width:100%;font-size:.84rem}.project-strip label{display:flex;align-items:center;gap:5px;font-weight:700;color:#374151}.project-strip input{height:28px;border:1px solid #cbd5e1;border-radius:6px;padding:3px 7px;background:white;color:#111827;font:600 .84rem Arial,sans-serif}.project-strip #projectTitleInput{width:190px}.project-strip #projectRevisionInput{width:70px}.plc-status{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap}.plc-status-dot{width:10px;height:10px;border-radius:50%;background:#94a3b8}.plc-status.running .plc-status-dot{background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.85)}.plc-status.error .plc-status-dot{background:#dc2626}.plc-status.connecting .plc-status-dot{background:#2563eb}
+.project-strip{display:flex;align-items:center;gap:10px;min-width:0;width:100%;font-size:.84rem}.project-strip label{display:flex;align-items:center;gap:5px;font-weight:700;color:#374151}.project-strip input{height:28px;border:1px solid #cbd5e1;border-radius:6px;padding:3px 7px;background:white;color:#111827;font:600 .84rem Arial,sans-serif}.project-strip #projectTitleInput{width:190px}.project-strip #projectRevisionInput{width:70px}.project-strip #averageScanTimeInput{width:105px;background:#f8fafc;color:#334155}.plc-status{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap}.plc-status-dot{width:10px;height:10px;border-radius:50%;background:#94a3b8}.plc-status.running .plc-status-dot{background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.85)}.plc-status.error .plc-status-dot{background:#dc2626}.plc-status.connecting .plc-status-dot{background:#2563eb}
 .rail.left.plc-running{background:#16a34a;box-shadow:0 0 6px #22c55e,0 0 14px rgba(34,197,94,.8),0 0 24px rgba(34,197,94,.45)}
 .placed-tile.live-powered{filter:drop-shadow(0 0 3px #22c55e) drop-shadow(0 0 7px rgba(34,197,94,.9));z-index:30}.placed-tile.live-power-in:not(.live-powered){filter:drop-shadow(-5px 0 5px rgba(34,197,94,.75))}
 .transfer-modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.48);display:flex;align-items:center;justify-content:center;z-index:100000;padding:18px}.transfer-modal-backdrop.hidden{display:none}.transfer-modal{width:min(92vw,620px);max-height:82vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 18px 55px rgba(0,0,0,.28);padding:22px}.transfer-modal h2{margin:0 0 8px;font-size:1.25rem}.transfer-current-stage{color:#475569;margin:0 0 12px}.transfer-progress-shell{height:18px;border-radius:999px;background:#e2e8f0;overflow:hidden;border:1px solid #cbd5e1}.transfer-progress-bar{height:100%;width:0;background:#2563eb;transition:width .2s ease,background-color .15s ease}.transfer-progress-bar.error{background:#dc2626}.transfer-log{margin:14px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:.9rem}.transfer-log li.ok::before{content:'✓ ';font-weight:900;color:#15803d}.transfer-log li.error::before{content:'✗ ';font-weight:900;color:#b91c1c}.transfer-log li.info::before{content:'• ';font-weight:900;color:#2563eb}.transfer-error-box{margin-top:14px;padding:11px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;white-space:pre-wrap}.transfer-modal-actions{display:flex;justify-content:flex-end;margin-top:16px}.transfer-close{border:0;border-radius:8px;padding:9px 16px;background:#111827;color:#fff;font-weight:700;cursor:pointer}.transfer-close.hidden{display:none}
@@ -351,7 +351,7 @@
 <body>
 <div class="app">
 <header class="topbar">
-  <div class="title">Ladder Logic — v1.50</div>
+  <div class="title">Ladder Logic — v1.51</div>
 
   <div class="ribbon-main-controls">
     <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button>
@@ -387,6 +387,7 @@
   <span>Ladder workspace — <span id="rowCount">16 major rows</span></span>
   <label>Project <input id="projectTitleInput" type="text" value="Untitled" maxlength="80" aria-label="Project title"></label>
   <label>Revision <input id="projectRevisionInput" type="number" value="1" min="1" max="65535" step="1" aria-label="Project revision"></label>
+  <label>Average Scan Time <input id="averageScanTimeInput" type="text" value="—" readonly aria-readonly="true" aria-label="Average scan time in microseconds"></label>
   <span class="plc-status" id="plcStatus"><span class="plc-status-dot"></span><span id="plcStatusText">Disconnected</span></span>
 </div></div><div class="workspace"><div class="ladder-canvas"><div class="rail left"></div>
             <div id="rungNumberLayer" class="rung-number-layer" aria-hidden="true"></div>
@@ -613,6 +614,7 @@ const connectPlcButton = document.getElementById("connectPlcButton");
 const plcRunStopButton = document.getElementById("plcRunStopButton");
 const projectTitleInput = document.getElementById("projectTitleInput");
 const projectRevisionInput = document.getElementById("projectRevisionInput");
+const averageScanTimeInput = document.getElementById("averageScanTimeInput");
 const plcStatus = document.getElementById("plcStatus");
 const plcStatusText = document.getElementById("plcStatusText");
 const transferModalBackdrop = document.getElementById("transferModalBackdrop");
@@ -645,12 +647,15 @@ let ladderAutosaveTimer = null;
 let ladderAutosaveSuspended = false;
 let ladderAutosaveObserver = null;
 
-// v1.50 PLC connection/runtime state. V1 has no stopped-valid-RAM state:
+// v1.51 PLC connection/runtime state. V1 has no stopped-valid-RAM state:
 // READY_FOR_PROGRAM means executable RAM is empty; RUNNING means a complete valid program is active.
 let plcPort = null;
 let plcReader = null;
 let plcWriter = null;
 let plcReadBuffer = "";
+let scanTimePollTimer = null;
+let scanTimePollInFlight = false;
+
 let plcConnected = false;
 let plcState = "DISCONNECTED";
 let plcMessageWaiters = [];
@@ -766,7 +771,7 @@ function buildOptimizedConfiguration(configuration = getRawPlcConfiguration()) {
   const controllerMap = { pico:"PICO", pico_w:"PICO_W", pico2:"PICO_2", pico2_w:"PICO_2_W" };
   const model = configuration?.controller?.model || configuration?.picoType || "pico2_w";
 
-  // v1.50: Prefer configuration.html v1.7+ canonical arrays.  Legacy ioState is
+  // v1.51: Prefer configuration.html v1.7+ canonical arrays.  Legacy ioState is
   // retained only as a migration fallback for projects saved by older versions.
   if (configuration?.schema === "PICO_PLC_CONFIGURATION" && Array.isArray(configuration.gpio)) {
     const gpio = configuration.gpio
@@ -915,7 +920,7 @@ function getConfiguredDigitalIOPoints() {
   const config = getRawPlcConfiguration();
   if (!config || !Object.keys(config).length) return [];
 
-  // v1.50 canonical path: configuration.html assigns and persists the logical
+  // v1.51 canonical path: configuration.html assigns and persists the logical
   // point. ladder.html must never independently renumber physical I/O.
   if (config?.schema === "PICO_PLC_CONFIGURATION" && Array.isArray(config.io)) {
     return config.io
@@ -1941,7 +1946,7 @@ function createPlacedTileFromProgramBlock(block) {
 }
 
 function loadProgramIntoEditor(program) {
-  // v1.50 authoritative source files wrap the exact ladder/editor source and canonical configuration.
+  // v1.51 authoritative source files wrap the exact ladder/editor source and canonical configuration.
   if (program?.format === "PICO_PLC_PROJECT") {
     if (program.formatVersion !== 1 || !program.ladder) throw new Error("Unsupported PLC project source format.");
     if (program.configuration && typeof program.configuration === "object") {
@@ -2727,6 +2732,49 @@ async function saveWithHandle(handle, text) {
 }
 
 
+
+function setAverageScanTime(value) {
+  const numeric = Number(value);
+  averageScanTimeInput.value =
+    Number.isFinite(numeric) && numeric >= 0
+      ? `${numeric.toFixed(1)} µs`
+      : "—";
+}
+
+function stopScanTimePolling(clearDisplay = true) {
+  if (scanTimePollTimer) {
+    clearInterval(scanTimePollTimer);
+    scanTimePollTimer = null;
+  }
+  scanTimePollInFlight = false;
+  if (clearDisplay) setAverageScanTime(null);
+}
+
+async function pollAverageScanTime() {
+  if (!plcConnected || plcState !== "RUNNING" || scanTimePollInFlight) return;
+
+  scanTimePollInFlight = true;
+  try {
+    const result = await sendPlcMessageAndWait(
+      { cmd: "GET_PROCESS_STATE" },
+      msg => msg.type === "PROCESS_STATE",
+      2500
+    );
+    setAverageScanTime(result.avgScanTimeUs ?? result.averageScanTimeUs);
+  } catch (_) {
+    // Do not disturb a running PLC merely because one diagnostic sample is
+    // missed. The next poll will retry automatically.
+  } finally {
+    scanTimePollInFlight = false;
+  }
+}
+
+function startScanTimePolling() {
+  stopScanTimePolling(false);
+  pollAverageScanTime();
+  scanTimePollTimer = setInterval(pollAverageScanTime, 500);
+}
+
 function setPlcState(nextState, detail = "") {
   plcState = nextState;
   plcStatus.classList.remove("running", "error", "connecting");
@@ -2737,7 +2785,9 @@ function setPlcState(nextState, detail = "") {
     plcRunStopButton.textContent = "Stop PLC, Flush Program";
     plcRunStopButton.classList.add("stop-mode");
     leftRail?.classList.add("plc-running");
+    startScanTimePolling();
   } else {
+    stopScanTimePolling();
     leftRail?.classList.remove("plc-running");
     clearLivePowerVisualization();
     plcRunStopButton.textContent = "Upload Logic, Run PLC";
@@ -2889,6 +2939,20 @@ async function sendPlcMessageAndWait(message, predicate, timeoutMs = 10000) {
 function dispatchPlcMessage(message) {
   if (!message || typeof message !== "object") return;
   if (message.type === "LIVE_SNAPSHOT") { applyLiveSnapshot(message); return; }
+  if (message.type === "PROCESS_STATE") {
+    setAverageScanTime(message.avgScanTimeUs ?? message.averageScanTimeUs);
+
+    // Let an explicit GET_PROCESS_STATE waiter consume the message as well.
+    const waiterIndex = plcMessageWaiters.findIndex(waiter => {
+      try { return !!waiter.predicate(message); } catch (_) { return false; }
+    });
+    if (waiterIndex >= 0) {
+      const waiter = plcMessageWaiters.splice(waiterIndex, 1)[0];
+      clearTimeout(waiter.timer);
+      waiter.resolve(message);
+    }
+    return;
+  }
 
   if (message.type === "PROJECT_SOURCE_BEGIN") {
     const pendingResolve = incomingProjectSource?.resolve || null;
@@ -3004,6 +3068,7 @@ async function disconnectPlc(detail = "Disconnected") {
   }
 
   plcConnected = false;
+  stopScanTimePolling();
 
   plcMessageBacklog = [];
   plcMessageWaiters.forEach(waiter => {
