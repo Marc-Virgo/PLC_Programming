@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.9</title>
+<title>PLC Configuration v1.10</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
-select,input[type=text]{box-sizing:border-box;padding:9px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#111827}select{width:100%;max-width:420px;margin-top:8px}.device-list{display:grid;gap:10px;margin-top:16px}.hardware-options{display:grid;gap:10px;margin-top:16px}.hardware-option{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #d1d5db;border-radius:9px;background:#f8fafc}.hardware-option input{width:18px;height:18px}.hardware-note{font-size:.9rem;color:#4b5563;margin-top:10px}
+select,input[type=text],input[type=number]{box-sizing:border-box;padding:9px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#111827}select{width:100%;max-width:420px;margin-top:8px}.device-list{display:grid;gap:10px;margin-top:16px}.hardware-options{display:grid;gap:10px;margin-top:16px}.hardware-option{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #d1d5db;border-radius:9px;background:#f8fafc}.hardware-option input{width:18px;height:18px}.hardware-note{font-size:.9rem;color:#4b5563;margin-top:10px}
 .device-row{display:grid;grid-template-columns:42px 1fr 100px;gap:10px;align-items:center;border:1px solid #d1d5db;border-radius:10px;padding:12px}.device-row.enabled{border-color:#111827;background:#f9fafb}.address{font-family:Consolas,monospace;text-align:right;font-weight:700}
 .summary{margin-top:16px;padding:14px;background:#eef2ff;border-radius:10px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
 button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;color:white;font-size:1rem;font-weight:700;text-decoration:none;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.danger-button{background:#b91c1c}.danger-button:hover{background:#991b1b}
@@ -16,7 +16,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </style>
 </head>
 <body>
-<header><h1 id="pageHeading">PLC Configuration v1.9</h1></header>
+<header><h1 id="pageHeading">PLC Configuration v1.10</h1></header>
 <main>
 <nav class="tabs" aria-label="PLC configuration sections">
 <button class="tab-button active" type="button" data-tab="hardware">Hardware</button>
@@ -37,8 +37,9 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 <div class="hardware-options" aria-label="Pico digital input defaults">
 <label class="hardware-option"><input id="picoInputsActiveLow" type="checkbox" checked><span><strong>Inputs Active Low</strong> — a LOW electrical level is interpreted as logical TRUE.</span></label>
 <label class="hardware-option"><input id="picoInputsPullUp" type="checkbox" checked><span><strong>Enable Internal Pull-up Resistors</strong> on Pico GPIO configured as digital inputs.</span></label>
+<label class="hardware-option"><span><strong>Digital Input Debounce</strong> — require a new logical input state to remain stable for <input id="picoInputsDebounceMs" type="number" min="0" max="1000" step="1" value="10" style="width:90px"> ms before accepting it.</span></label>
 </div>
-<p class="hardware-note">Default PLC input behaviour is Active Low with the Pico's internal pull-up enabled. This suits dry-contact switches wired from the input to ground.</p>
+<p class="hardware-note">Default PLC input behaviour is Active Low with the Pico's internal pull-up enabled and a 10 ms software debounce filter. A debounce value of 0 disables filtering.</p>
 </section>
 <section class="card">
 <h2>I²C I/O Expansion Devices</h2>
@@ -46,8 +47,9 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 <div class="hardware-options" aria-label="MCP23017 digital input defaults">
 <label class="hardware-option"><input id="mcpInputsActiveLow" type="checkbox" checked><span><strong>Inputs Active Low</strong> — a LOW MCP23017 input level is interpreted as logical TRUE.</span></label>
 <label class="hardware-option"><input id="mcpInputsPullUp" type="checkbox" checked><span><strong>Enable Internal Pull-up Resistors</strong> on MCP23017 pins configured as digital inputs.</span></label>
+<label class="hardware-option"><span><strong>Digital Input Debounce</strong> — require a new logical MCP23017 input state to remain stable for <input id="mcpInputsDebounceMs" type="number" min="0" max="1000" step="1" value="10" style="width:90px"> ms before accepting it.</span></label>
 </div>
-<p class="hardware-note">MCP23017 input pull-ups use the device's GPPU registers. The MCP23017 provides internal pull-up resistors, but not internal pull-down resistors.</p>
+<p class="hardware-note">MCP23017 input pull-ups use the device's GPPU registers. The MCP23017 provides internal pull-up resistors, but not internal pull-down resistors. A 10 ms debounce default is stored for future MCP23017 runtime support.</p>
 <div class="device-list">
 <label class="device-row"><input type="checkbox" class="mcp" data-address="0x20"><span>MCP23017 I/O Expander 1</span><span class="address">0x20</span></label>
 <label class="device-row"><input type="checkbox" class="mcp" data-address="0x21"><span>MCP23017 I/O Expander 2</span><span class="address">0x21</span></label>
@@ -92,7 +94,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.9';
+const CONFIG_VERSION='1.10';
 const CONFIG_SCHEMA='PICO_PLC_CONFIGURATION';
 const CONFIG_SCHEMA_VERSION=1;
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
@@ -101,8 +103,10 @@ document.getElementById('pageHeading').textContent=`PLC Configuration v${CONFIG_
 const picoType=document.getElementById('picoType');
 const picoInputsActiveLow=document.getElementById('picoInputsActiveLow');
 const picoInputsPullUp=document.getElementById('picoInputsPullUp');
+const picoInputsDebounceMs=document.getElementById('picoInputsDebounceMs');
 const mcpInputsActiveLow=document.getElementById('mcpInputsActiveLow');
 const mcpInputsPullUp=document.getElementById('mcpInputsPullUp');
+const mcpInputsDebounceMs=document.getElementById('mcpInputsDebounceMs');
 const devices=[...document.querySelectorAll('.mcp')];
 const summary=document.getElementById('summary');
 const digitalBody=document.getElementById('digitalBody');
@@ -428,6 +432,12 @@ function parseMcpResource(resource){
  const match=/^MCP23017 @ (0x[0-9A-Fa-f]{2})$/.exec(resource||'');
  return match?match[1]:null;
 }
+function normalizedDebounceMs(input){
+ const value=Math.trunc(Number(input?.value));
+ if(!Number.isFinite(value))return 10;
+ return Math.min(1000,Math.max(0,value));
+}
+
 function buildCanonicalConfiguration(){
  refreshLogicalPoints();
  const gpio=[];
@@ -478,17 +488,20 @@ function buildCanonicalConfiguration(){
      model:picoType.value,
      digitalInputDefaults:{
        activeLow:!!picoInputsActiveLow.checked,
-       pullUp:!!picoInputsPullUp.checked
+       pullUp:!!picoInputsPullUp.checked,
+       debounceMs:normalizedDebounceMs(picoInputsDebounceMs)
      }
    },
    inputDefaults:{
      pico:{
        activeLow:!!picoInputsActiveLow.checked,
-       pullUp:!!picoInputsPullUp.checked
+       pullUp:!!picoInputsPullUp.checked,
+       debounceMs:normalizedDebounceMs(picoInputsDebounceMs)
      },
      mcp23017:{
        activeLow:!!mcpInputsActiveLow.checked,
-       pullUp:!!mcpInputsPullUp.checked
+       pullUp:!!mcpInputsPullUp.checked,
+       debounceMs:normalizedDebounceMs(mcpInputsDebounceMs)
      }
    },
    i2cDevices:enabledMcp.map(address=>({
@@ -496,7 +509,8 @@ function buildCanonicalConfiguration(){
      address,
      digitalInputDefaults:{
        activeLow:!!mcpInputsActiveLow.checked,
-       pullUp:!!mcpInputsPullUp.checked
+       pullUp:!!mcpInputsPullUp.checked,
+       debounceMs:normalizedDebounceMs(mcpInputsDebounceMs)
      }
    })),
    allocation:{...logicalAllocation},
@@ -505,7 +519,8 @@ function buildCanonicalConfiguration(){
      address,
      digitalInputDefaults:{
        activeLow:!!mcpInputsActiveLow.checked,
-       pullUp:!!mcpInputsPullUp.checked
+       pullUp:!!mcpInputsPullUp.checked,
+       debounceMs:normalizedDebounceMs(mcpInputsDebounceMs)
      },
      pins
    })),
@@ -517,6 +532,10 @@ function buildCanonicalConfiguration(){
 }
 function validateConfiguration(config){
  const errors=[];
+ const picoDebounce=Number(config.inputDefaults?.pico?.debounceMs);
+ const mcpDebounce=Number(config.inputDefaults?.mcp23017?.debounceMs);
+ if(!Number.isInteger(picoDebounce)||picoDebounce<0||picoDebounce>1000)errors.push('Pico Digital Input Debounce must be an integer from 0 to 1000 ms.');
+ if(!Number.isInteger(mcpDebounce)||mcpDebounce<0||mcpDebounce>1000)errors.push('MCP23017 Digital Input Debounce must be an integer from 0 to 1000 ms.');
  const logicalSeen=new Map();
  for(const row of [...config.gpio,...config.mcp23017.flatMap(d=>d.pins.map(p=>({...p,address:d.address})))]){
    if(!row.enabled)continue;
@@ -590,11 +609,21 @@ function loadConfiguration(){
    const picoDefaults=config.inputDefaults?.pico||config.controller?.digitalInputDefaults||{};
    picoInputsActiveLow.checked=picoDefaults.activeLow!==false;
    picoInputsPullUp.checked=picoDefaults.pullUp!==false;
+   picoInputsDebounceMs.value=String(
+     Number.isInteger(Number(picoDefaults.debounceMs))
+       ? Math.min(1000,Math.max(0,Number(picoDefaults.debounceMs)))
+       : 10
+   );
 
    const firstMcp=(config.i2cDevices||config.mcp23017||[])[0];
    const mcpDefaults=config.inputDefaults?.mcp23017||firstMcp?.digitalInputDefaults||{};
    mcpInputsActiveLow.checked=mcpDefaults.activeLow!==false;
    mcpInputsPullUp.checked=mcpDefaults.pullUp!==false;
+   mcpInputsDebounceMs.value=String(
+     Number.isInteger(Number(mcpDefaults.debounceMs))
+       ? Math.min(1000,Math.max(0,Number(mcpDefaults.debounceMs)))
+       : 10
+   );
 
    const enabled=new Set((config.i2cDevices||config.mcp23017||[]).map(x=>x.address));
    devices.forEach(d=>d.checked=enabled.has(d.dataset.address));
