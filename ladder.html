@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.71</title>
+  <title>Ladder Logic — v1.72</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile-icon{display:block;max-width:100%;height:40px;width:auto;object-fit:contain;pointer-events:none}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -336,7 +336,7 @@
 }
 
 
-/* v1.71 canonical configuration integration, project identity, PLC runtime controls, transfer progress, and live monitoring */
+/* v1.72 canonical configuration integration, project identity, PLC runtime controls, transfer progress, and live monitoring */
 .plc-button{border:0;border-radius:8px;padding:11px 14px;font-size:.92rem;font-weight:700;cursor:pointer;background:#1d4ed8;color:white;white-space:nowrap}
 .plc-button:hover:not(:disabled){background:#1e40af}.plc-button.stop-mode{background:#991b1b}.plc-button.stop-mode:hover:not(:disabled){background:#7f1d1d}.plc-button:disabled{opacity:.48;cursor:not-allowed}
 .plc-connect-button{background:#475569}.plc-connect-button:hover:not(:disabled){background:#334155}
@@ -380,6 +380,41 @@
 }
 .counter-output-state-overlay .counter-output-rung.on{
   opacity:1;
+}
+
+.timer-runtime-overlay{
+  position:absolute;
+  width:140px;
+  height:280px;
+  pointer-events:none;
+  z-index:36;
+  font-family:Consolas,"Courier New",monospace;
+  font-size:18px;
+  line-height:20px;
+  font-weight:700;
+  color:#111827;
+  text-align:center;
+}
+.timer-runtime-overlay .timer-preset{
+  position:absolute;
+  top:86px;
+  left:50%;
+  transform:translateX(-50%);
+  white-space:nowrap;
+}
+.timer-runtime-overlay .timer-word{
+  position:absolute;
+  top:108px;
+  left:50%;
+  transform:translateX(-50%);
+  white-space:nowrap;
+}
+.timer-runtime-overlay .timer-accumulated{
+  position:absolute;
+  top:130px;
+  left:50%;
+  transform:translateX(-50%);
+  white-space:nowrap;
 }
 .counter-runtime-overlay{
   position:absolute;
@@ -468,7 +503,7 @@
 <body>
 <div class="app">
 <header class="topbar">
-  <div class="title">Ladder Logic — v1.71</div>
+  <div class="title">Ladder Logic — v1.72</div>
 
   <div class="ribbon-main-controls">
     <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button>
@@ -765,7 +800,7 @@ let ladderAutosaveTimer = null;
 let ladderAutosaveSuspended = false;
 let ladderAutosaveObserver = null;
 
-// v1.71 PLC connection/runtime state. V1 has no stopped-valid-RAM state:
+// v1.72 PLC connection/runtime state. V1 has no stopped-valid-RAM state:
 // READY_FOR_PROGRAM means executable RAM is empty; RUNNING means a complete valid program is active.
 let plcPort = null;
 let plcReader = null;
@@ -894,7 +929,7 @@ function buildOptimizedConfiguration(configuration = getRawPlcConfiguration()) {
   const controllerMap = { pico:"PICO", pico_w:"PICO_W", pico2:"PICO_2", pico2_w:"PICO_2_W" };
   const model = configuration?.controller?.model || configuration?.picoType || "pico2_w";
 
-  // v1.71: Prefer configuration.html v1.7+ canonical arrays.  Legacy ioState is
+  // v1.72: Prefer configuration.html v1.7+ canonical arrays.  Legacy ioState is
   // retained only as a migration fallback for projects saved by older versions.
   if (configuration?.schema === "PICO_PLC_CONFIGURATION" && Array.isArray(configuration.gpio)) {
     const gpio = configuration.gpio
@@ -1066,7 +1101,7 @@ function getConfiguredDigitalIOPoints() {
   const config = getRawPlcConfiguration();
   if (!config || !Object.keys(config).length) return [];
 
-  // v1.71 canonical path: configuration.html assigns and persists the logical
+  // v1.72 canonical path: configuration.html assigns and persists the logical
   // point. ladder.html must never independently renumber physical I/O.
   if (config?.schema === "PICO_PLC_CONFIGURATION" && Array.isArray(config.io)) {
     return config.io
@@ -1499,7 +1534,14 @@ function showElementPropertyEditor({ title, fields, values }) {
 function elementEditorFields(type) {
   const reg = (key, label) => ({ key, label, type: "text", placeholder: "Register / data reference" });
   switch (type) {
-    case "timer": return [{ key:"presetMs", label:"Preset (ms)", type:"number", min:0, step:1 }];
+    case "timer": return [
+      {
+        key:"presetDisplay",
+        label:"Preset Time (xxxxx.xxx seconds)",
+        type:"text",
+        placeholder:"00001.000"
+      }
+    ];
     case "counter": return [
       {
         key:"direction",
@@ -1535,6 +1577,131 @@ function elementEditorFields(type) {
   }
 }
 
+
+
+function normalizeTimerProperties(properties = {}) {
+  let presetMs = Number(properties.presetMs);
+
+  if (
+    properties.presetDisplay != null &&
+    /^\d{5}\.\d{3}$/.test(String(properties.presetDisplay))
+  ) {
+    presetMs = Math.round(Number(properties.presetDisplay) * 1000);
+  }
+
+  if (!Number.isInteger(presetMs) || presetMs < 0) presetMs = 1000;
+  presetMs = Math.min(99999999, Math.max(0, presetMs));
+
+  const presetDisplay = (presetMs / 1000)
+    .toFixed(3)
+    .padStart(9, "0");
+
+  return { ...properties, presetMs, presetDisplay };
+}
+
+async function promptForTimerConfiguration(current = null, title = "Configure Timer") {
+  const values = normalizeTimerProperties(
+    current || defaultPropertiesForType("timer")
+  );
+
+  const result = await showElementPropertyEditor({
+    title,
+    fields: elementEditorFields("timer"),
+    values
+  });
+
+  if (!result) return null;
+
+  const entered = String(result.presetDisplay ?? "").trim();
+  if (!/^\d{5}\.\d{3}$/.test(entered)) {
+    alert("Timer preset must use exactly xxxxx.xxx format, for example 00010.500.");
+    return promptForTimerConfiguration(values, title);
+  }
+
+  return normalizeTimerProperties({ ...values, presetDisplay: entered });
+}
+
+function ensureTimerRuntimeOverlay(tile) {
+  if (!tile || tile.dataset.programType !== "timer") return null;
+
+  const id = String(tile.dataset.blockId || "");
+  let overlay = ladderCanvas.querySelector(
+    `.timer-runtime-overlay[data-block-id="${CSS.escape(id)}"]`
+  );
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "timer-runtime-overlay";
+    overlay.dataset.blockId = id;
+    ladderCanvas.appendChild(overlay);
+  }
+
+  overlay.style.left = tile.style.left;
+  overlay.style.top = tile.style.top;
+  return overlay;
+}
+
+function renderTimerRuntimeOverlay(tile, accumulatedMs = null) {
+  if (!tile || tile.dataset.programType !== "timer") return;
+
+  const props = normalizeTimerProperties(
+    JSON.parse(tile.dataset.properties || "{}")
+  );
+  const overlay = ensureTimerRuntimeOverlay(tile);
+  if (!overlay) return;
+
+  const currentMs =
+    accumulatedMs == null || !Number.isFinite(Number(accumulatedMs))
+      ? 0
+      : Math.max(0, Math.trunc(Number(accumulatedMs)));
+
+  const accumulatedDisplay = (currentMs / 1000)
+    .toFixed(3)
+    .padStart(9, "0");
+
+  overlay.innerHTML = `
+    <div class="timer-preset">${props.presetDisplay}</div>
+    <div class="timer-word">Timer</div>
+    <div class="timer-accumulated">${accumulatedDisplay}</div>
+  `;
+}
+
+function refreshAllTimerOverlays(timerStates = null) {
+  const stateMap = new Map();
+
+  for (const item of timerStates || []) {
+    if (!Array.isArray(item) || item.length < 2) continue;
+    stateMap.set(String(item[0]), Number(item[1]));
+  }
+
+  ladderCanvas
+    .querySelectorAll('.placed-tile[data-program-type="timer"]')
+    .forEach(tile => {
+      const id = String(tile.dataset.blockId || "");
+      renderTimerRuntimeOverlay(
+        tile,
+        stateMap.has(id) ? stateMap.get(id) : null
+      );
+    });
+
+  ladderCanvas.querySelectorAll(".timer-runtime-overlay").forEach(overlay => {
+    const id = String(overlay.dataset.blockId || "");
+    const tile = ladderCanvas.querySelector(
+      `.placed-tile[data-program-type="timer"][data-block-id="${CSS.escape(id)}"]`
+    );
+    if (!tile) overlay.remove();
+  });
+}
+
+function removeTimerRuntimeOverlayForTile(tile) {
+  if (!tile || tile.dataset.programType !== "timer") return;
+  const id = String(tile.dataset.blockId || "");
+  ladderCanvas
+    .querySelectorAll(
+      `.timer-runtime-overlay[data-block-id="${CSS.escape(id)}"]`
+    )
+    .forEach(overlay => overlay.remove());
+}
 
 function normalizeCounterProperties(properties = {}) {
   const direction =
@@ -1836,6 +2003,18 @@ async function editPlacedElement(tile) {
     return;
   }
 
+  if (type === "timer") {
+    const updatedTimer = await promptForTimerConfiguration(
+      properties,
+      "Edit Timer"
+    );
+    if (!updatedTimer) return;
+    tile.dataset.properties = JSON.stringify(updatedTimer);
+    renderTimerRuntimeOverlay(tile);
+    scheduleLadderWorkspaceAutosave();
+    return;
+  }
+
   if (type === "counter") {
     const updatedCounter = await promptForCounterConfiguration(
       properties,
@@ -2053,7 +2232,10 @@ function defaultPortsForType(type) {
 }
 
 function defaultPropertiesForType(type) {
-  if (type === "timer") return { presetMs: 1000 };
+  if (type === "timer") return {
+    presetMs: 1000,
+    presetDisplay: "00001.000"
+  };
   if (type === "counter") return {
     direction: "up",
     preset: 10,
@@ -2172,6 +2354,10 @@ function serializePlacedBlock(tile) {
     } catch (error) {
       console.warn("Invalid stored block ports; using defaults.", error);
     }
+  }
+
+  if (type === "timer") {
+    properties = normalizeTimerProperties(properties);
   }
 
   if (type === "counter") {
@@ -2294,7 +2480,7 @@ function startLadderWorkspaceAutosave() {
 
       if (
         target?.classList?.contains("placed-tile") &&
-        target?.dataset?.programType === "counter"
+        ["counter", "timer"].includes(target?.dataset?.programType)
       ) {
         return true;
       }
@@ -2311,7 +2497,7 @@ function startLadderWorkspaceAutosave() {
             node?.classList?.contains("counter-runtime-overlay") ||
             (
               node?.classList?.contains("placed-tile") &&
-              node?.dataset?.programType === "counter"
+              ["counter", "timer"].includes(node?.dataset?.programType)
             )
           )
         );
@@ -2322,6 +2508,7 @@ function startLadderWorkspaceAutosave() {
 
     if (counterMovedOrChanged) {
       requestAnimationFrame(() => {
+        refreshAllTimerOverlays(latestProcessState?.timers || []);
         refreshAllCounterOverlays();
         refreshAllCounterOutputStates(latestProcessState?.counters || []);
       });
@@ -2389,6 +2576,7 @@ function validateProgramForOpen(program) {
 function clearPlacedBlocks() {
   ladderCanvas.querySelectorAll(".placed-tile").forEach(tile => tile.remove());
   ladderCanvas.querySelectorAll(".binding-grid-label").forEach(label => label.remove());
+  ladderCanvas.querySelectorAll(".timer-runtime-overlay").forEach(label => label.remove());
   ladderCanvas.querySelectorAll(".counter-runtime-overlay").forEach(label => label.remove());
   ladderCanvas.querySelectorAll(".counter-output-state-overlay").forEach(label => label.remove());
 }
@@ -2423,9 +2611,11 @@ function createPlacedTileFromProgramBlock(block) {
     image.classList.add("vertical-shunt");
   }
   const loadedProperties =
-    block.type === "counter"
-      ? normalizeCounterProperties(block.properties || {})
-      : (block.properties || {});
+    block.type === "timer"
+      ? normalizeTimerProperties(block.properties || {})
+      : block.type === "counter"
+        ? normalizeCounterProperties(block.properties || {})
+        : (block.properties || {});
   image.dataset.properties = JSON.stringify(loadedProperties);
   image.dataset.ports = JSON.stringify(block.ports || defaultPortsForType(block.type));
 
@@ -2447,6 +2637,9 @@ function createPlacedTileFromProgramBlock(block) {
   if (overlay) image.style.zIndex = "1000";
   updatePlacedTileBindingMetadata(image, block.properties || {});
   ladderCanvas.appendChild(image);
+  if (block.type === "timer") {
+    renderTimerRuntimeOverlay(image);
+  }
   if (block.type === "counter") {
     renderCounterRuntimeOverlay(image);
   }
@@ -2454,7 +2647,7 @@ function createPlacedTileFromProgramBlock(block) {
 }
 
 function loadProgramIntoEditor(program) {
-  // v1.71 authoritative source files wrap the exact ladder/editor source and canonical configuration.
+  // v1.72 authoritative source files wrap the exact ladder/editor source and canonical configuration.
   if (program?.format === "PICO_PLC_PROJECT") {
     if (program.formatVersion !== 1 || !program.ladder) throw new Error("Unsupported PLC project source format.");
     if (program.configuration && typeof program.configuration === "object") {
@@ -2753,7 +2946,9 @@ function buildOptimizedProgram(program = buildProgramObject(), projectMeta = nul
           const enableExpr = boundary[top];
           const resetExpr = boundary[top + 1];
           if (!enableExpr || !resetExpr) break;
-          const presetMs = block.properties?.presetMs ?? 0;
+          const timerProperties =
+            normalizeTimerProperties(block.properties || {});
+          const presetMs = timerProperties.presetMs;
           rawNext[row] = {
             kind: "function",
             opcode: optimizerOpcodes.timer,
@@ -3850,6 +4045,7 @@ function dispatchPlcMessage(message) {
   if (message.type === "PROCESS_STATE") {
     latestProcessState = message;
     setAverageScanTime(message.avgScanTimeUs ?? message.averageScanTimeUs);
+    refreshAllTimerOverlays(message.timers || []);
     refreshAllCounterOverlays(message.counters || []);
     refreshAllCounterOutputStates(message.counters || []);
     applyMonitoringView(message);
@@ -5107,6 +5303,9 @@ function commitGroupCopy() {
 
     ladderCanvas.appendChild(placed);
 
+    if (placed.dataset.programType === "timer") {
+      renderTimerRuntimeOverlay(placed);
+    }
     if (placed.dataset.programType === "counter") {
       renderCounterRuntimeOverlay(placed);
     }
@@ -5157,6 +5356,9 @@ function commitGroupMove() {
     ghost.remove();
     ladderCanvas.appendChild(placed);
 
+    if (placed.dataset.programType === "timer") {
+      renderTimerRuntimeOverlay(placed);
+    }
     if (placed.dataset.programType === "counter") {
       renderCounterRuntimeOverlay(placed);
     }
@@ -5259,6 +5461,7 @@ function finishDeleteMarquee(event) {
 
   const tilesToDelete = getTilesIntersectingCurrentMarquee();
   tilesToDelete.forEach(tile => {
+    removeTimerRuntimeOverlayForTile(tile);
     removeCounterRuntimeOverlayForTile(tile);
     tile.remove();
   });
@@ -5380,6 +5583,7 @@ function cellContainsTimerOrCounter(col, row) {
 function removeTileOccupyingCell(col, row) {
   const tile = getTileOccupyingCell(col, row);
   if (tile) {
+    removeTimerRuntimeOverlayForTile(tile);
     removeCounterRuntimeOverlayForTile(tile);
     tile.remove();
     removeOrphanCounterOverlays();
@@ -5389,6 +5593,7 @@ function removeTileOccupyingCell(col, row) {
 function removeBlockingTileOccupyingCell(col, row) {
   const tile = getBlockingTileOccupyingCell(col, row);
   if (tile) {
+    removeTimerRuntimeOverlayForTile(tile);
     removeCounterRuntimeOverlayForTile(tile);
     tile.remove();
     removeOrphanCounterOverlays();
@@ -5575,6 +5780,7 @@ workspace.addEventListener("click", async event => {
   if (deleteMode) {
     const tile = getTileOccupyingCell(col, row);
     if (tile) {
+      removeTimerRuntimeOverlayForTile(tile);
       removeCounterRuntimeOverlayForTile(tile);
       tile.remove();
       removeOrphanCounterOverlays();
@@ -5604,6 +5810,14 @@ workspace.addEventListener("click", async event => {
   }
 
   let placementProperties = defaultPropertiesForType(placementDefinition.programType);
+
+  if (placementDefinition.programType === "timer") {
+    placementProperties = await promptForTimerConfiguration(
+      placementProperties,
+      "Configure Timer"
+    );
+    if (!placementProperties) return;
+  }
 
   if (placementDefinition.programType === "counter") {
     placementProperties = await promptForCounterConfiguration(
@@ -5669,6 +5883,9 @@ workspace.addEventListener("click", async event => {
   }
 
   ladderCanvas.appendChild(image);
+  if (placementDefinition.programType === "timer") {
+    renderTimerRuntimeOverlay(image);
+  }
   if (placementDefinition.programType === "counter") {
     renderCounterRuntimeOverlay(image);
   }
@@ -5702,6 +5919,7 @@ updateCanvasHeight();
 syncProjectIdentityUi();
 setPlcState("DISCONNECTED");
 restoreLadderWorkspaceFromBrowser();
+refreshAllTimerOverlays();
 refreshAllCounterOverlays();
 refreshAllCounterOutputStates();
 startLadderWorkspaceAutosave();
