@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.77</title>
+  <title>Ladder Logic — v1.79</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile-icon{display:block;max-width:100%;height:40px;width:auto;object-fit:contain;pointer-events:none}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -336,7 +336,7 @@
 }
 
 
-/* v1.77 ADD label spacing and bare-integer literal entry plus v1.76 ADD block register-label overlay and prior runtime/register integration */
+/* v1.79 mouse-wheel zoom with middle-button double-click reset; v1.78 terminal-coil placement rules, power-rail constant paths, timer disconnected-input complementary output, descriptor diagnostics; v1.77 ADD label spacing and bare-integer literal entry */
 .plc-button{border:0;border-radius:8px;padding:11px 14px;font-size:.92rem;font-weight:700;cursor:pointer;background:#1d4ed8;color:white;white-space:nowrap}
 .plc-button:hover:not(:disabled){background:#1e40af}.plc-button.stop-mode{background:#991b1b}.plc-button.stop-mode:hover:not(:disabled){background:#7f1d1d}.plc-button:disabled{opacity:.48;cursor:not-allowed}
 .plc-connect-button{background:#475569}.plc-connect-button:hover:not(:disabled){background:#334155}
@@ -568,7 +568,7 @@
 <body>
 <div class="app">
 <header class="topbar">
-  <div class="title">Ladder Logic — v1.77</div>
+  <div class="title">Ladder Logic — v1.79</div>
 
   <div class="ribbon-main-controls">
     <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button>
@@ -845,6 +845,50 @@ const transferCloseButton = document.getElementById("transferCloseButton");
 
 let majorRows = 16;
 const majorCellSize = 140;
+
+// v1.79 workspace zoom. Web Serial targets Chromium-based browsers, where CSS zoom
+// provides reliable layout scaling while preserving the ladder's logical 140 px grid.
+const DEFAULT_LADDER_ZOOM = 1;
+const MIN_LADDER_ZOOM = 0.40;
+const MAX_LADDER_ZOOM = 2.00;
+const LADDER_ZOOM_STEP = 0.10;
+let ladderZoom = DEFAULT_LADDER_ZOOM;
+let lastMiddleClickTime = 0;
+const MIDDLE_DOUBLE_CLICK_MS = 400;
+
+function clampLadderZoom(value) {
+  return Math.min(MAX_LADDER_ZOOM, Math.max(MIN_LADDER_ZOOM, value));
+}
+
+function applyLadderZoom(nextZoom, anchorClientX = null, anchorClientY = null) {
+  const oldZoom = ladderZoom;
+  const clamped = Math.round(clampLadderZoom(nextZoom) * 100) / 100;
+  if (Math.abs(clamped - oldZoom) < 0.0001) return;
+
+  // Preserve the logical ladder point under the mouse while changing zoom.
+  let logicalX = null;
+  let logicalY = null;
+  if (anchorClientX != null && anchorClientY != null) {
+    const oldRect = ladderCanvas.getBoundingClientRect();
+    logicalX = (anchorClientX - oldRect.left) / oldZoom;
+    logicalY = (anchorClientY - oldRect.top) / oldZoom;
+  }
+
+  ladderZoom = clamped;
+  ladderCanvas.style.zoom = ladderZoom;
+
+  if (logicalX != null && logicalY != null) {
+    const newRect = ladderCanvas.getBoundingClientRect();
+    const newClientX = newRect.left + logicalX * ladderZoom;
+    const newClientY = newRect.top + logicalY * ladderZoom;
+    workspace.scrollLeft += newClientX - anchorClientX;
+    workspace.scrollTop += newClientY - anchorClientY;
+  }
+}
+
+function resetLadderZoom(anchorClientX = null, anchorClientY = null) {
+  applyLadderZoom(DEFAULT_LADDER_ZOOM, anchorClientX, anchorClientY);
+}
 let editorEnabled = false;
 let placementMode = null;
 let placementDefinition = null;
@@ -3041,7 +3085,7 @@ function createPlacedTileFromProgramBlock(block) {
 }
 
 function loadProgramIntoEditor(program) {
-  // v1.77 authoritative source files wrap the exact ladder/editor source and canonical configuration.
+  // v1.79 authoritative source files wrap the exact ladder/editor source and canonical configuration.
   if (program?.format === "PICO_PLC_PROJECT") {
     if (program.formatVersion !== 1 || !program.ladder) throw new Error("Unsupported PLC project source format.");
     if (program.configuration && typeof program.configuration === "object") {
@@ -3241,6 +3285,12 @@ function buildOptimizedProgram(program = buildProgramObject(), projectMeta = nul
     .sort((a, b) => logicalPointNumber(a.logicalPoint).number - logicalPointNumber(b.logicalPoint).number);
   const virtualByPoint = new Map(virtualCoils.map(item => [item.logicalPoint, item]));
 
+  const coilDisplayName = block => {
+    const descriptor = String(block.properties?.descriptor || "").trim();
+    const logicalPoint = normalizeLogicalPoint(optimizerPortBinding(block, "output"));
+    return descriptor || logicalPoint || `Coil block ${block.id}`;
+  };
+
   for (const block of blocks) {
     if (!["normally_open", "normally_closed", "pgt_contact", "ngt_contact", "coil"].includes(block.type)) continue;
     const portName = block.type === "coil" ? "output" : "condition";
@@ -3257,9 +3307,25 @@ function buildOptimizedProgram(program = buildProgramObject(), projectMeta = nul
 
     if (block.type === "coil") {
       const parsed = logicalPointNumber(binding);
-      if (parsed.type !== "O") throw new Error(`Coil ${block.id} must be bound to an O: logical point.`);
+      if (parsed.type !== "O") throw new Error(`Coil “${coilDisplayName(block)}” must be bound to an O: logical point.`);
     }
   }
+
+  // A Coil is a rung terminal. Reject imported/legacy source that contains any
+  // ladder element to its right on the same occupied row. Use the Descriptor in
+  // diagnostics because the graphical editor intentionally does not show block IDs.
+  for (const coil of blocks.filter(block => block.type === "coil")) {
+    const offender = blocks.find(block => {
+      if (block.id === coil.id || block.position.col <= coil.position.col) return false;
+      const span = block.geometry?.spanRows || 1;
+      return coil.position.row >= block.position.row &&
+             coil.position.row < block.position.row + span;
+    });
+    if (offender) {
+      throw new Error(`Coil “${coilDisplayName(coil)}” must be the final element on its rung; an element is placed to its right.`);
+    }
+  }
+
   const maxRows = Math.max(program.editor?.rows || 1, ...blocks.map(b => b.position.row + (b.geometry?.spanRows || 1)));
   const columns = program.editor?.grid?.columns || 9;
 
@@ -3341,7 +3407,17 @@ function buildOptimizedProgram(program = buildProgramObject(), projectMeta = nul
           const top = block.position.row;
           const enableExpr = boundary[top];
           const resetExpr = boundary[top + 1];
-          if (!enableExpr || !resetExpr) break;
+
+          /*
+            Modicon-style disconnected-input behavior for this two-input Timer:
+            if either Boolean input has no electrical path, the primary Output
+            can never energize while the complementary Not Output is a constant
+            TRUE path. No Timer runtime state is required in that condition.
+          */
+          if (!enableExpr || !resetExpr) {
+            rawNext[row] = outputSelector === 1 ? optimizerTrue() : null;
+            break;
+          }
           const timerProperties =
             normalizeTimerProperties(block.properties || {});
           const presetMs = timerProperties.presetMs;
@@ -3700,9 +3776,14 @@ function buildOptimizedProgram(program = buildProgramObject(), projectMeta = nul
   for (const coil of coils) {
     const inputBoundary = boundaries[coil.position.col];
     const expression = inputBoundary?.[coil.position.row] || null;
-    if (!expression || expression.kind === "true") {
-      throw new Error(`Coil ${coil.id} does not have a resolvable input path.`);
+    if (!expression) {
+      throw new Error(`Coil “${coilDisplayName(coil)}” does not have a resolvable input path.`);
     }
+
+    // expression.kind === "true" is intentional and represents a direct power
+    // rail path (for example a Coil in column 0, or a left-column Horizontal
+    // Shunt feeding the Coil). serializeExpression() emits no operand for TRUE,
+    // producing a Coil-only rung that the runtime treats as permanently powered.
 
     const records = [[optimizerOpcodes.coil, coil.id, optimizerPortBinding(coil, "output")]];
     serializeExpression(expression, records, true);
@@ -5369,8 +5450,8 @@ function bringVerticalShuntsToFront() {
 function eventToCanvasPoint(event) {
   const rect = ladderCanvas.getBoundingClientRect();
   return {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top
+    x: (event.clientX - rect.left) / ladderZoom,
+    y: (event.clientY - rect.top) / ladderZoom
   };
 }
 
@@ -5613,6 +5694,10 @@ function destinationAllowsGroup(deltaCol, deltaRow) {
         return false;
       }
     }
+  }
+
+  if (resultingLayoutViolatesCoilTerminalRule(deltaCol, deltaRow)) {
+    return false;
   }
 
   return true;
@@ -6008,6 +6093,93 @@ function getBlockingTileOccupyingCell(col, row) {
   return tiles.find(tile => tile.dataset.overlay !== "true") || null;
 }
 
+
+function tileProgramType(tile) {
+  return tile?.dataset?.programType || getProgramTypeFromTile(tile) || "";
+}
+
+function tileOccupiesMajorRow(tile, row) {
+  return getTileOccupiedCells(tile).some(cell => cell.row === row);
+}
+
+/*
+  A Coil is a rung terminal. No ladder element may exist in a major column to
+  the right of a Coil on the same occupied row. This applies to normal blocks
+  and overlays alike, and also prevents placing a Coil to the left of an
+  already-existing element on its row.
+*/
+function placementViolatesCoilTerminalRule(programType, col, row, spanRows = 1) {
+  const candidateRows = new Set();
+  for (let r = 0; r < spanRows; r++) candidateRows.add(row + r);
+
+  const tiles = [...ladderCanvas.querySelectorAll(".placed-tile")];
+
+  if (programType === "coil") {
+    return tiles.some(tile => {
+      const otherCol = parseInt(tile.dataset.majorColumn || "0", 10);
+      return otherCol > col && tileOccupiesMajorRow(tile, row);
+    });
+  }
+
+  return tiles.some(tile => {
+    if (tileProgramType(tile) !== "coil") return false;
+    const coilCol = parseInt(tile.dataset.majorColumn || "0", 10);
+    const coilRow = parseInt(tile.dataset.majorRow || "0", 10);
+    return coilCol < col && candidateRows.has(coilRow);
+  });
+}
+
+function resultingLayoutViolatesCoilTerminalRule(deltaCol, deltaRow) {
+  const originalByTile = new Map(selectedOriginalPositions.map(item => [item.tile, item]));
+  const layout = [];
+
+  // Existing layout. During Move, selected tiles are represented at their
+  // destination. During Copy, their originals remain exactly where they are.
+  for (const tile of ladderCanvas.querySelectorAll(".placed-tile")) {
+    const original = originalByTile.get(tile);
+    const spanRows = parseInt(tile.dataset.spanRows || "1", 10);
+    const base = {
+      tile,
+      type: tileProgramType(tile),
+      col: parseInt(tile.dataset.majorColumn || "0", 10),
+      row: parseInt(tile.dataset.majorRow || "0", 10),
+      spanRows
+    };
+
+    if (original && !copyMode) {
+      base.col = original.col + deltaCol;
+      base.row = original.row + deltaRow;
+    }
+    layout.push(base);
+  }
+
+  // Copy creates an additional set of elements at the destination while the
+  // originals remain part of the rung topology.
+  if (copyMode) {
+    for (const original of selectedOriginalPositions) {
+      layout.push({
+        tile: null,
+        type: tileProgramType(original.tile),
+        col: original.col + deltaCol,
+        row: original.row + deltaRow,
+        spanRows: parseInt(original.tile.dataset.spanRows || "1", 10)
+      });
+    }
+  }
+
+  for (let i = 0; i < layout.length; i++) {
+    const coil = layout[i];
+    if (coil.type !== "coil") continue;
+    for (let j = 0; j < layout.length; j++) {
+      if (i === j) continue;
+      const other = layout[j];
+      if (other.col <= coil.col) continue;
+      if (coil.row >= other.row && coil.row < other.row + other.spanRows) return true;
+    }
+  }
+  return false;
+}
+
 function cellContainsTimerOrCounter(col, row) {
   const tiles = getTilesOccupyingCell(col, row);
   return tiles.some(tile =>
@@ -6043,9 +6215,9 @@ function removeBlockingTileOccupyingCell(col, row) {
 }
 
 function getCellFromMouse(event) {
-  const rect = ladderCanvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
+  const point = eventToCanvasPoint(event);
+  const x = point.x;
+  const y = point.y;
 
   if (x < 0 || y < 0 || x >= ladderCanvas.offsetWidth || y >= ladderCanvas.offsetHeight) {
     return null;
@@ -6096,6 +6268,19 @@ function updateHighlightForHoveredCell() {
     return;
   }
 
+  // A Coil is always terminal. Show the normal invalid-placement color when
+  // this candidate would put any element to the right of a Coil, or would put
+  // a new Coil to the left of an existing element on the same rung.
+  if (placementDefinition && placementViolatesCoilTerminalRule(
+      placementDefinition.programType,
+      col,
+      row,
+      placementDefinition.spanRows || 1
+  )) {
+    showCellHighlight(col, row, "red");
+    return;
+  }
+
   // Vertical Shunt is an overlay and may be added even when the two cells
   // already contain contacts, coils, counters, or other regular elements.
   if (placementDefinition && placementDefinition.key === "vertical_shunt") {
@@ -6134,7 +6319,37 @@ placementPreview.addEventListener("error", () => {
   console.error("Unable to load placement image:", placementPreview.src);
 });
 
+// Mouse wheel zooms the ladder around the current pointer position.
+workspace.addEventListener("wheel", event => {
+  // Keep normal wheel scrolling when the pointer is outside the ladder canvas.
+  if (!ladderCanvas.contains(event.target)) return;
+
+  event.preventDefault();
+  const direction = event.deltaY < 0 ? 1 : -1;
+  applyLadderZoom(
+    ladderZoom + direction * LADDER_ZOOM_STEP,
+    event.clientX,
+    event.clientY
+  );
+}, { passive: false });
+
+// Browsers do not consistently emit dblclick for the middle mouse button, so
+// detect two middle-button presses directly. The second press restores 100%.
 workspace.addEventListener("mousedown", event => {
+  if (event.button !== 1) return;
+
+  event.preventDefault();
+  const now = performance.now();
+  if (now - lastMiddleClickTime <= MIDDLE_DOUBLE_CLICK_MS) {
+    lastMiddleClickTime = 0;
+    resetLadderZoom(event.clientX, event.clientY);
+  } else {
+    lastMiddleClickTime = now;
+  }
+});
+
+workspace.addEventListener("mousedown", event => {
+  if (event.button !== 0) return;
   if (deleteMode) {
     beginDeleteMarquee(event);
   } else {
@@ -6236,6 +6451,15 @@ workspace.addEventListener("click", async event => {
   if (!placementMode || !placementImage || !placementDefinition) return;
 
   const isOverlay = placementDefinition.overlay === true;
+
+  // Coils are rung terminals. Enforce the same rule used by the red placement
+  // preview so an invalid click can never create an element beyond a Coil.
+  if (placementViolatesCoilTerminalRule(
+      placementDefinition.programType,
+      col,
+      row,
+      placementDefinition.spanRows || 1
+  )) return;
 
   // Ordinary blocks must fit completely within the grid and may not overlap
   // any existing non-overlay block in any major cell they occupy. Vertical
