@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.10</title>
+<title>PLC Configuration v1.11</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
 select,input[type=text],input[type=number]{box-sizing:border-box;padding:9px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#111827}select{width:100%;max-width:420px;margin-top:8px}.device-list{display:grid;gap:10px;margin-top:16px}.hardware-options{display:grid;gap:10px;margin-top:16px}.hardware-option{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #d1d5db;border-radius:9px;background:#f8fafc}.hardware-option input{width:18px;height:18px}.hardware-note{font-size:.9rem;color:#4b5563;margin-top:10px}
-.device-row{display:grid;grid-template-columns:42px 1fr 100px;gap:10px;align-items:center;border:1px solid #d1d5db;border-radius:10px;padding:12px}.device-row.enabled{border-color:#111827;background:#f9fafb}.address{font-family:Consolas,monospace;text-align:right;font-weight:700}
+.device-row{display:grid;grid-template-columns:42px 1fr 120px 100px;gap:10px;align-items:center;border:1px solid #d1d5db;border-radius:10px;padding:12px}.device-row select{margin:0;min-width:110px}.mcp-runtime-row{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:14px}.mcp-runtime-row label{font-weight:700}.mcp-runtime-row select{width:auto;min-width:120px;margin:0}.device-row.enabled{border-color:#111827;background:#f9fafb}.address{font-family:Consolas,monospace;text-align:right;font-weight:700}
 .summary{margin-top:16px;padding:14px;background:#eef2ff;border-radius:10px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
 button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;color:white;font-size:1rem;font-weight:700;text-decoration:none;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.danger-button{background:#b91c1c}.danger-button:hover{background:#991b1b}
 .tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid #cbd5e1;margin-bottom:20px}.tab-button{border-radius:9px 9px 0 0;background:#e5e7eb;color:#111827;padding:11px 20px}.tab-button.active{background:#111827;color:#fff}.tab-panel{display:none}.tab-panel.active{display:block}
@@ -16,7 +16,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </style>
 </head>
 <body>
-<header><h1 id="pageHeading">PLC Configuration v1.10</h1></header>
+<header><h1 id="pageHeading">PLC Configuration v1.11</h1></header>
 <main>
 <nav class="tabs" aria-label="PLC configuration sections">
 <button class="tab-button active" type="button" data-tab="hardware">Hardware</button>
@@ -49,16 +49,21 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 <label class="hardware-option"><input id="mcpInputsPullUp" type="checkbox" checked><span><strong>Enable Internal Pull-up Resistors</strong> on MCP23017 pins configured as digital inputs.</span></label>
 <label class="hardware-option"><span><strong>Digital Input Debounce</strong> — require a new logical MCP23017 input state to remain stable for <input id="mcpInputsDebounceMs" type="number" min="0" max="1000" step="1" value="10" style="width:90px"> ms before accepting it.</span></label>
 </div>
-<p class="hardware-note">MCP23017 input pull-ups use the device's GPPU registers. The MCP23017 provides internal pull-up resistors, but not internal pull-down resistors. A 10 ms debounce default is stored for future MCP23017 runtime support.</p>
+<p class="hardware-note">MCP23017 input pull-ups use the device's GPPU registers. Inputs default to Active Low with pull-ups enabled. The firmware uses mirrored open-drain MCP interrupts for immediate input refresh and also forces a complete bulk input read every 1 ms so the process image cannot go stale if an interrupt is missed.</p>
+<div class="mcp-runtime-row">
+<label for="mcpInterruptPin">Shared MCP interrupt Pico GPIO</label>
+<select id="mcpInterruptPin"></select>
+<span class="hardware-note">Wire the mirrored/open-drain INTA/INTB interrupt output from enabled MCP23017 devices to this Pico GPIO. Multiple devices may share the line.</span>
+</div>
 <div class="device-list">
-<label class="device-row"><input type="checkbox" class="mcp" data-address="0x20"><span>MCP23017 I/O Expander 1</span><span class="address">0x20</span></label>
-<label class="device-row"><input type="checkbox" class="mcp" data-address="0x21"><span>MCP23017 I/O Expander 2</span><span class="address">0x21</span></label>
-<label class="device-row"><input type="checkbox" class="mcp" data-address="0x22"><span>MCP23017 I/O Expander 3</span><span class="address">0x22</span></label>
-<label class="device-row"><input type="checkbox" class="mcp" data-address="0x23"><span>MCP23017 I/O Expander 4</span><span class="address">0x23</span></label>
-<label class="device-row"><input type="checkbox" class="mcp" data-address="0x24"><span>MCP23017 I/O Expander 5</span><span class="address">0x24</span></label>
-<label class="device-row"><input type="checkbox" class="mcp" data-address="0x25"><span>MCP23017 I/O Expander 6</span><span class="address">0x25</span></label>
-<label class="device-row"><input type="checkbox" class="mcp" data-address="0x26"><span>MCP23017 I/O Expander 7</span><span class="address">0x26</span></label>
-<label class="device-row"><input type="checkbox" class="mcp" data-address="0x27"><span>MCP23017 I/O Expander 8</span><span class="address">0x27</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x20"><span>MCP23017 I/O Expander 1</span><select class="mcp-bus" aria-label="I2C bus for MCP23017 0x20"><option>I2C0</option><option>I2C1</option></select><span class="address">0x20</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x21"><span>MCP23017 I/O Expander 2</span><select class="mcp-bus" aria-label="I2C bus for MCP23017 0x21"><option>I2C0</option><option>I2C1</option></select><span class="address">0x21</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x22"><span>MCP23017 I/O Expander 3</span><select class="mcp-bus" aria-label="I2C bus for MCP23017 0x22"><option>I2C0</option><option>I2C1</option></select><span class="address">0x22</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x23"><span>MCP23017 I/O Expander 4</span><select class="mcp-bus" aria-label="I2C bus for MCP23017 0x23"><option>I2C0</option><option>I2C1</option></select><span class="address">0x23</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x24"><span>MCP23017 I/O Expander 5</span><select class="mcp-bus" aria-label="I2C bus for MCP23017 0x24"><option>I2C0</option><option>I2C1</option></select><span class="address">0x24</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x25"><span>MCP23017 I/O Expander 6</span><select class="mcp-bus" aria-label="I2C bus for MCP23017 0x25"><option>I2C0</option><option>I2C1</option></select><span class="address">0x25</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x26"><span>MCP23017 I/O Expander 7</span><select class="mcp-bus" aria-label="I2C bus for MCP23017 0x26"><option>I2C0</option><option>I2C1</option></select><span class="address">0x26</span></label>
+<label class="device-row"><input type="checkbox" class="mcp" data-address="0x27"><span>MCP23017 I/O Expander 8</span><select class="mcp-bus" aria-label="I2C bus for MCP23017 0x27"><option>I2C0</option><option>I2C1</option></select><span class="address">0x27</span></label>
 </div>
 <div class="summary" id="summary">Enabled MCP23017 devices: 0<br>Expansion I/O points available: 0</div>
 </section>
@@ -94,9 +99,9 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.10';
+const CONFIG_VERSION='1.11';
 const CONFIG_SCHEMA='PICO_PLC_CONFIGURATION';
-const CONFIG_SCHEMA_VERSION=1;
+const CONFIG_SCHEMA_VERSION=2;
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
 document.getElementById('pageHeading').textContent=`PLC Configuration v${CONFIG_VERSION}`;
 
@@ -107,6 +112,7 @@ const picoInputsDebounceMs=document.getElementById('picoInputsDebounceMs');
 const mcpInputsActiveLow=document.getElementById('mcpInputsActiveLow');
 const mcpInputsPullUp=document.getElementById('mcpInputsPullUp');
 const mcpInputsDebounceMs=document.getElementById('mcpInputsDebounceMs');
+const mcpInterruptPin=document.getElementById('mcpInterruptPin');
 const devices=[...document.querySelectorAll('.mcp')];
 const summary=document.getElementById('summary');
 const digitalBody=document.getElementById('digitalBody');
@@ -116,6 +122,8 @@ let ioState={};
 let logicalAllocation={nextInput:1,nextOutput:1};
 
 const picoPins=[...Array(23).keys(),26,27,28].map(n=>`GP${n}`);
+picoPins.forEach(pin=>{const o=document.createElement('option');o.value=pin;o.textContent=pin;mcpInterruptPin.appendChild(o);});
+mcpInterruptPin.value='GP22';
 const picoPhysicalPins={
  GP0:1,GP1:2,GP2:4,GP3:5,GP4:6,GP5:7,GP6:9,GP7:10,GP8:11,GP9:12,
  GP10:14,GP11:15,GP12:16,GP13:17,GP14:19,GP15:20,GP16:21,GP17:22,GP18:24,GP19:25,
@@ -438,6 +446,20 @@ function normalizedDebounceMs(input){
  return Math.min(1000,Math.max(0,value));
 }
 
+function selectedMcpBus(address){
+ const dev=devices.find(d=>d.dataset.address===address);
+ return dev?.closest('.device-row')?.querySelector('.mcp-bus')?.value||'I2C0';
+}
+function activeI2CPins(protocol){
+ const group=communicationGroups.find(g=>g.protocol===protocol && Object.entries(g.pins).every(([pin,fn])=>{
+   const st=getPicoState(pin); return st.function===fn && st.active==='enabled';
+ }));
+ if(!group)return null;
+ const sda=Object.entries(group.pins).find(([,fn])=>fn.endsWith(' SDA'))?.[0]||null;
+ const scl=Object.entries(group.pins).find(([,fn])=>fn.endsWith(' SCL'))?.[0]||null;
+ return sda&&scl?{sda,scl}:null;
+}
+
 function buildCanonicalConfiguration(){
  refreshLogicalPoints();
  const gpio=[];
@@ -445,6 +467,7 @@ function buildCanonicalConfiguration(){
  const io=[];
  const enabledMcp=devices.filter(d=>d.checked).map(d=>d.dataset.address);
  enabledMcp.forEach(address=>mcpMap.set(address,[]));
+ const mcpRuntime={interruptPin:mcpInterruptPin.value,refreshUs:1000,busFrequencyHz:400000};
 
  for(const [key,state] of Object.entries(ioState)){
    const split=key.lastIndexOf('|');
@@ -504,26 +527,39 @@ function buildCanonicalConfiguration(){
        debounceMs:normalizedDebounceMs(mcpInputsDebounceMs)
      }
    },
-   i2cDevices:enabledMcp.map(address=>({
+   mcpRuntime,
+   i2cDevices:enabledMcp.map(address=>{
+     const bus=selectedMcpBus(address); const pins=activeI2CPins(bus);
+     return {
      type:'MCP23017',
      address,
+     bus,
+     sdaPin:pins?.sda||null,
+     sclPin:pins?.scl||null,
+     interruptPin:mcpRuntime.interruptPin,
      digitalInputDefaults:{
        activeLow:!!mcpInputsActiveLow.checked,
        pullUp:!!mcpInputsPullUp.checked,
        debounceMs:normalizedDebounceMs(mcpInputsDebounceMs)
      }
-   })),
+   };}),
    allocation:{...logicalAllocation},
    gpio:gpio.sort((a,b)=>a.gpio-b.gpio),
-   mcp23017:[...mcpMap.entries()].map(([address,pins])=>({
+   mcp23017:[...mcpMap.entries()].map(([address,pins])=>{
+     const bus=selectedMcpBus(address); const busPins=activeI2CPins(bus);
+     return {
      address,
+     bus,
+     sdaPin:busPins?.sda||null,
+     sclPin:busPins?.scl||null,
+     interruptPin:mcpRuntime.interruptPin,
      digitalInputDefaults:{
        activeLow:!!mcpInputsActiveLow.checked,
        pullUp:!!mcpInputsPullUp.checked,
        debounceMs:normalizedDebounceMs(mcpInputsDebounceMs)
      },
      pins
-   })),
+   };}),
    io:io.sort((a,b)=>a.logicalPoint.localeCompare(b.logicalPoint)),
    // ioState remains for backward compatibility with ladder.html while the
    // canonical arrays above become the long-term Pico/browser contract.
@@ -552,6 +588,16 @@ function validateConfiguration(config){
      .filter(g=>Object.entries(g.pins).every(([pin,fn])=>getPicoState(pin).function===fn));
    if(selected.length>1)errors.push(`${protocol} is assigned to more than one Pico pin group.`);
  });
+ if(config.mcp23017.length){
+   if(!/^GP(?:[0-9]|1[0-9]|2[0-2]|2[6-8])$/.test(config.mcpRuntime?.interruptPin||''))errors.push('A valid shared MCP23017 interrupt Pico GPIO must be selected.');
+   const irq=config.mcpRuntime?.interruptPin;
+   const irqState=irq?getPicoState(irq):null;
+   if(irqState && irqState.active==='enabled')errors.push(`${irq} is reserved for the shared MCP23017 interrupt and cannot also be an enabled Pico I/O/peripheral point.`);
+   for(const dev of config.mcp23017){
+     if(!['I2C0','I2C1'].includes(dev.bus))errors.push(`${dev.address} has an invalid I²C bus selection.`);
+     if(!dev.sdaPin||!dev.sclPin)errors.push(`${dev.address} uses ${dev.bus}, but a complete enabled ${dev.bus} SDA/SCL pin group has not been configured in the Digital I/O table.`);
+   }
+ }
  return [...new Set(errors)];
 }
 function resetDigitalIO(){
@@ -625,8 +671,15 @@ function loadConfiguration(){
        : 10
    );
 
-   const enabled=new Set((config.i2cDevices||config.mcp23017||[]).map(x=>x.address));
-   devices.forEach(d=>d.checked=enabled.has(d.dataset.address));
+   const savedMcpDevices=(config.i2cDevices||config.mcp23017||[]);
+   const enabled=new Set(savedMcpDevices.map(x=>x.address));
+   devices.forEach(d=>{
+     d.checked=enabled.has(d.dataset.address);
+     const savedDev=savedMcpDevices.find(x=>x.address===d.dataset.address);
+     const busSel=d.closest('.device-row')?.querySelector('.mcp-bus');
+     if(busSel)busSel.value=['I2C0','I2C1'].includes(savedDev?.bus)?savedDev.bus:'I2C0';
+   });
+   mcpInterruptPin.value=config.mcpRuntime?.interruptPin||savedMcpDevices[0]?.interruptPin||'GP22';
    if(config.ioState && typeof config.ioState==='object')ioState=config.ioState;
    if(config.allocation && typeof config.allocation==='object'){
      logicalAllocation.nextInput=Math.max(1,Number(config.allocation.nextInput)||1);
@@ -642,6 +695,7 @@ tabs.forEach(btn=>btn.addEventListener('click',()=>{
  panels.forEach(p=>p.classList.toggle('active',p.id===btn.dataset.tab));
 }));
 devices.forEach(d=>d.addEventListener('change',updateSummary));
+document.querySelectorAll('.mcp-bus').forEach(sel=>sel.addEventListener('change',updateSummary));
 document.getElementById('saveButton').addEventListener('click',saveConfiguration);
 document.getElementById('resetIoButton').addEventListener('click',resetDigitalIO);
 loadConfiguration();
