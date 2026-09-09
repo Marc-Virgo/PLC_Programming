@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.11</title>
+<title>PLC Configuration v1.12</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
@@ -16,7 +16,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </style>
 </head>
 <body>
-<header><h1 id="pageHeading">PLC Configuration v1.11</h1></header>
+<header><h1 id="pageHeading">PLC Configuration v1.12</h1></header>
 <main>
 <nav class="tabs" aria-label="PLC configuration sections">
 <button class="tab-button active" type="button" data-tab="hardware">Hardware</button>
@@ -99,7 +99,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.11';
+const CONFIG_VERSION='1.12';
 const CONFIG_SCHEMA='PICO_PLC_CONFIGURATION';
 const CONFIG_SCHEMA_VERSION=2;
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
@@ -226,6 +226,7 @@ function makeFunctionSelect(resource,pin,kind,state){
    if(kind==='pico' && !applyingCommunicationGroup)handlePicoCommunicationSelection(pin,state.function,previous);
    renumberLogicalPoints();
    refreshCommunicationOptionAvailability();
+   syncMcpBusSelections();
  });
  return sel;
 }
@@ -381,14 +382,39 @@ function appendIORow(resource,pin,kind){
    renumberLogicalPoints();
 });
  descriptor.addEventListener('input',()=>{state.descriptor=descriptor.value;syncActiveAvailability();renumberLogicalPoints();});
- active.addEventListener('change',()=>{state.active=active.value;renumberLogicalPoints();});
+ active.addEventListener('change',()=>{state.active=active.value;renumberLogicalPoints();syncMcpBusSelections();});
  descriptorTd.appendChild(descriptor);activeTd.appendChild(active);
  tr.append(logical,resourceTd,pinTd,functionTd,descriptorTd,activeTd);digitalBody.appendChild(tr);
  syncActiveAvailability();
 }
+function reserveMcpInterruptPin(pin){
+ if(!pin)return;
+ // If the newly reserved IRQ pin was part of an active peripheral group,
+ // release the complete group so the remaining pins cannot appear valid by themselves.
+ for(const [protocol,groupId] of Object.entries({...activeCommunicationGroups})){
+   const group=communicationGroups.find(g=>g.id===groupId);
+   if(group && Object.prototype.hasOwnProperty.call(group.pins,pin)){
+     delete activeCommunicationGroups[protocol];
+     applyingCommunicationGroup=true;
+     Object.entries(group.pins).forEach(([p,fn])=>{
+       const st=getPicoState(p);
+       if(st.function===fn)setPicoFunction(p,'Output');
+     });
+     applyingCommunicationGroup=false;
+   }
+ }
+ const state=getPicoState(pin);
+ state.function='Output';
+ state.descriptor='';
+ state.descriptorAuto=false;
+ state.active='disabled';
+ state.logicalPoint=null;
+ state.logicalClass=null;
+}
 function rebuildDigitalTable(){
  digitalBody.innerHTML='';
- picoPins.forEach(pin=>appendIORow('Raspberry Pi Pico',pin,'pico'));
+ const reservedIrq=mcpInterruptPin.value;
+ picoPins.filter(pin=>pin!==reservedIrq).forEach(pin=>appendIORow('Raspberry Pi Pico',pin,'pico'));
  devices.filter(d=>d.checked).forEach(d=>{
    const resource=`MCP23017 @ ${d.dataset.address}`;
    ['GPA0','GPA1','GPA2','GPA3','GPA4','GPA5','GPA6','GPA7','GPB0','GPB1','GPB2','GPB3','GPB4','GPB5','GPB6','GPB7'].forEach(pin=>appendIORow(resource,pin,'mcp'));
@@ -396,6 +422,7 @@ function rebuildDigitalTable(){
  renumberLogicalPoints();
  inferActiveCommunicationGroups();
  refreshCommunicationOptionAvailability();
+ syncMcpBusSelections();
 }
 function allocateLogicalPoint(cls){
  if(cls==='I'){
@@ -446,7 +473,21 @@ function normalizedDebounceMs(input){
  return Math.min(1000,Math.max(0,value));
 }
 
+function configuredI2CBuses(){
+ return ['I2C0','I2C1'].filter(bus=>!!activeI2CPins(bus));
+}
+function syncMcpBusSelections(){
+ const buses=configuredI2CBuses();
+ const implied=buses.length===1?buses[0]:null;
+ document.querySelectorAll('.mcp-bus').forEach(sel=>{
+   if(implied)sel.value=implied;
+   sel.disabled=!!implied;
+   sel.title=implied?`${implied} is implied by the Digital I/O configuration.`:'Select the I²C bus for this MCP23017.';
+ });
+}
 function selectedMcpBus(address){
+ const buses=configuredI2CBuses();
+ if(buses.length===1)return buses[0];
  const dev=devices.find(d=>d.dataset.address===address);
  return dev?.closest('.device-row')?.querySelector('.mcp-bus')?.value||'I2C0';
 }
@@ -481,6 +522,7 @@ function buildCanonicalConfiguration(){
    const logicalPoint=(cls && state.logicalPoint)?state.logicalPoint:null;
 
    if(resource==='Raspberry Pi Pico'){
+     if(pin===mcpRuntime.interruptPin)continue;
      gpio.push({
        gpio:Number(pin.replace(/^GP/,'')),
        pin,
@@ -681,6 +723,7 @@ function loadConfiguration(){
    });
    mcpInterruptPin.value=config.mcpRuntime?.interruptPin||savedMcpDevices[0]?.interruptPin||'GP22';
    if(config.ioState && typeof config.ioState==='object')ioState=config.ioState;
+   reserveMcpInterruptPin(mcpInterruptPin.value);
    if(config.allocation && typeof config.allocation==='object'){
      logicalAllocation.nextInput=Math.max(1,Number(config.allocation.nextInput)||1);
      logicalAllocation.nextOutput=Math.max(1,Number(config.allocation.nextOutput)||1);
@@ -688,14 +731,21 @@ function loadConfiguration(){
    migrateLegacyLogicalPoints();
   }catch(e){console.warn('Unable to load PLC configuration:',e);}
  }
+ reserveMcpInterruptPin(mcpInterruptPin.value);
  updateSummary();
+ syncMcpBusSelections();
 }
 tabs.forEach(btn=>btn.addEventListener('click',()=>{
  tabs.forEach(b=>b.classList.toggle('active',b===btn));
  panels.forEach(p=>p.classList.toggle('active',p.id===btn.dataset.tab));
 }));
-devices.forEach(d=>d.addEventListener('change',updateSummary));
+devices.forEach(d=>d.addEventListener('change',()=>{updateSummary();syncMcpBusSelections();}));
 document.querySelectorAll('.mcp-bus').forEach(sel=>sel.addEventListener('change',updateSummary));
+mcpInterruptPin.addEventListener('change',()=>{
+ reserveMcpInterruptPin(mcpInterruptPin.value);
+ rebuildDigitalTable();
+ syncMcpBusSelections();
+});
 document.getElementById('saveButton').addEventListener('click',saveConfiguration);
 document.getElementById('resetIoButton').addEventListener('click',resetDigitalIO);
 loadConfiguration();
