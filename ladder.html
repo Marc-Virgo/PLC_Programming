@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.86</title>
+  <title>Ladder Logic — v1.87</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile-icon{display:block;max-width:100%;height:40px;width:auto;object-fit:contain;pointer-events:none}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -857,7 +857,7 @@ const transferCloseButton = document.getElementById("transferCloseButton");
 let majorRows = 16;
 const majorCellSize = 140;
 
-// v1.86 online-monitoring redraw diagnostics. v1.84 optimizer TRUE-path serialization fix. v1.81 MCP23017 runtime configuration transfer. v1.80 workspace navigation. v1.79 added zoom. Web Serial targets Chromium-based browsers, where CSS zoom
+// v1.87 cached/batched online monitoring. v1.86 online-monitoring redraw diagnostics. v1.84 optimizer TRUE-path serialization fix. v1.81 MCP23017 runtime configuration transfer. v1.80 workspace navigation. v1.79 added zoom. Web Serial targets Chromium-based browsers, where CSS zoom
 // provides reliable layout scaling while preserving the ladder's logical 140 px grid.
 const DEFAULT_LADDER_ZOOM = 1;
 const MIN_LADDER_ZOOM = 0.40;
@@ -938,13 +938,22 @@ let ioMonitorPollInFlight = false;
 let monitoringViewMode = "series";
 let latestProcessState = null;
 
-// v1.86: browser-side online monitoring performance instrumentation.
+// v1.87: cached/batched browser-side online monitoring with redraw diagnostics.
 // C/A/M = current / rolling average (last 100 samples) / maximum since reset.
 const GUI_TIMING_SAMPLE_LIMIT = 100;
 let guiUpdateTimingSamples = [];
 let guiFrameTimingSamples = [];
 let guiUpdateTimingMaxMs = 0;
 let guiFrameTimingMaxMs = 0;
+
+// v1.87: online monitoring cache and frame batching. Ladder topology is
+// immutable while normal Online Monitoring is active, so serialize it once
+// and reuse direct DOM references until the editor changes the ladder.
+let monitoringTopologyCache = null;
+let monitoringVisualState = new Map();
+let monitoringFrameRequest = null;
+let pendingMonitoringSnapshot = null;
+let pendingMonitoringFrameStartMs = 0;
 
 
 let plcConnected = false;
@@ -1934,29 +1943,48 @@ function ensureTimerRuntimeOverlay(tile) {
   return overlay;
 }
 
+function monitoringTilesForType(type) {
+  if (plcState === "RUNNING" && !editorEnabled && monitoringTopologyCache) {
+    return monitoringTopologyCache.entries
+      .filter(entry => entry.block.type === type)
+      .map(entry => entry.tile);
+  }
+  return [...ladderCanvas.querySelectorAll(`.placed-tile[data-program-type="${type}"]`)];
+}
+
 function renderTimerRuntimeOverlay(tile, accumulatedMs = null) {
   if (!tile || tile.dataset.programType !== "timer") return;
 
-  const props = normalizeTimerProperties(
-    JSON.parse(tile.dataset.properties || "{}")
-  );
+  const props = normalizeTimerProperties(JSON.parse(tile.dataset.properties || "{}"));
   const overlay = ensureTimerRuntimeOverlay(tile);
   if (!overlay) return;
 
-  const currentMs =
-    accumulatedMs == null || !Number.isFinite(Number(accumulatedMs))
-      ? 0
-      : Math.max(0, Math.trunc(Number(accumulatedMs)));
+  const currentMs = accumulatedMs == null || !Number.isFinite(Number(accumulatedMs))
+    ? 0
+    : Math.max(0, Math.trunc(Number(accumulatedMs)));
+  const accumulatedDisplay = (currentMs / 1000).toFixed(3).padStart(9, "0");
 
-  const accumulatedDisplay = (currentMs / 1000)
-    .toFixed(3)
-    .padStart(9, "0");
+  // Position can change while editing; during Online Monitoring it is static.
+  if (overlay.style.left !== tile.style.left) overlay.style.left = tile.style.left;
+  if (overlay.style.top !== tile.style.top) overlay.style.top = tile.style.top;
 
-  overlay.innerHTML = `
-    <div class="timer-preset">${props.presetDisplay}</div>
-    <div class="timer-word">Timer</div>
-    <div class="timer-accumulated">${accumulatedDisplay}</div>
-  `;
+  let presetNode = overlay.querySelector(".timer-preset");
+  let wordNode = overlay.querySelector(".timer-word");
+  let accumulatedNode = overlay.querySelector(".timer-accumulated");
+  if (!presetNode || !wordNode || !accumulatedNode) {
+    overlay.textContent = "";
+    presetNode = document.createElement("div");
+    presetNode.className = "timer-preset";
+    wordNode = document.createElement("div");
+    wordNode.className = "timer-word";
+    accumulatedNode = document.createElement("div");
+    accumulatedNode.className = "timer-accumulated";
+    overlay.append(presetNode, wordNode, accumulatedNode);
+  }
+
+  if (presetNode.textContent !== props.presetDisplay) presetNode.textContent = props.presetDisplay;
+  if (wordNode.textContent !== "Timer") wordNode.textContent = "Timer";
+  if (accumulatedNode.textContent !== accumulatedDisplay) accumulatedNode.textContent = accumulatedDisplay;
 }
 
 
@@ -1988,44 +2016,32 @@ function renderTimerOutputState(tile, accumulatedMs = null) {
 
   let outputState = false;
   let notOutputState = false;
-
-  if (
-    plcState === "RUNNING" &&
-    !editorEnabled &&
-    accumulatedMs != null &&
-    Number.isFinite(Number(accumulatedMs))
-  ) {
-    const props = normalizeTimerProperties(
-      JSON.parse(tile.dataset.properties || "{}")
-    );
-
-    const accumulated =
-      Math.max(0, Math.trunc(Number(accumulatedMs)));
-
-    /*
-      Timer outputs are complementary and are based on equality because the
-      runtime accumulator saturates at the preset:
-        upper Output     = accumulated == preset
-        lower Not Output = accumulated != preset
-    */
+  if (plcState === "RUNNING" && !editorEnabled && accumulatedMs != null && Number.isFinite(Number(accumulatedMs))) {
+    const props = normalizeTimerProperties(JSON.parse(tile.dataset.properties || "{}"));
+    const accumulated = Math.max(0, Math.trunc(Number(accumulatedMs)));
     outputState = accumulated === props.presetMs;
     notOutputState = accumulated !== props.presetMs;
   }
 
-  overlay.innerHTML = `
-    <img
-      class="timer-output-rung output ${outputState ? "on" : ""}"
-      src="./images/timer.png"
-      alt=""
-      draggable="false"
-    >
-    <img
-      class="timer-output-rung not-output ${notOutputState ? "on" : ""}"
-      src="./images/timer.png"
-      alt=""
-      draggable="false"
-    >
-  `;
+  let outputRung = overlay.querySelector(".timer-output-rung.output");
+  let notOutputRung = overlay.querySelector(".timer-output-rung.not-output");
+  if (!outputRung || !notOutputRung) {
+    overlay.textContent = "";
+    outputRung = document.createElement("img");
+    outputRung.className = "timer-output-rung output";
+    outputRung.src = "./images/timer.png";
+    outputRung.alt = "";
+    outputRung.draggable = false;
+    notOutputRung = document.createElement("img");
+    notOutputRung.className = "timer-output-rung not-output";
+    notOutputRung.src = "./images/timer.png";
+    notOutputRung.alt = "";
+    notOutputRung.draggable = false;
+    overlay.append(outputRung, notOutputRung);
+  }
+
+  if (outputRung.classList.contains("on") !== outputState) outputRung.classList.toggle("on", outputState);
+  if (notOutputRung.classList.contains("on") !== notOutputState) notOutputRung.classList.toggle("on", notOutputState);
 }
 
 function refreshAllTimerOutputStates(timerStates = null) {
@@ -2036,9 +2052,7 @@ function refreshAllTimerOutputStates(timerStates = null) {
     stateMap.set(String(item[0]), Number(item[1]));
   }
 
-  ladderCanvas
-    .querySelectorAll('.placed-tile[data-program-type="timer"]')
-    .forEach(tile => {
+  monitoringTilesForType("timer").forEach(tile => {
       const id = String(tile.dataset.blockId || "");
       renderTimerOutputState(
         tile,
@@ -2065,9 +2079,7 @@ function refreshAllTimerOverlays(timerStates = null) {
     stateMap.set(String(item[0]), Number(item[1]));
   }
 
-  ladderCanvas
-    .querySelectorAll('.placed-tile[data-program-type="timer"]')
-    .forEach(tile => {
+  monitoringTilesForType("timer").forEach(tile => {
       const id = String(tile.dataset.blockId || "");
       renderTimerRuntimeOverlay(
         tile,
@@ -2235,38 +2247,39 @@ function ensureCounterRuntimeOverlay(tile) {
 function renderCounterRuntimeOverlay(tile, currentCount = null) {
   if (!tile || tile.dataset.programType !== "counter") return;
 
-  const props = normalizeCounterProperties(
-    JSON.parse(tile.dataset.properties || "{}")
-  );
+  const props = normalizeCounterProperties(JSON.parse(tile.dataset.properties || "{}"));
   const overlay = ensureCounterRuntimeOverlay(tile);
   if (!overlay) return;
 
-  // Keep the text attached to the block when the block is moved or copied.
-  overlay.style.left = tile.style.left;
-  overlay.style.top = tile.style.top;
+  if (overlay.style.left !== tile.style.left) overlay.style.left = tile.style.left;
+  if (overlay.style.top !== tile.style.top) overlay.style.top = tile.style.top;
 
   const fullPreset = String(props.preset);
   const shortPreset = formatCounterPresetForBlock(props.preset);
   const directionWord = props.direction === "down" ? "Down" : "Up";
+  const count = currentCount == null || !Number.isFinite(Number(currentCount))
+    ? (props.direction === "down" ? props.startValue : 0)
+    : Math.trunc(Number(currentCount));
 
-  let count;
-  if (currentCount == null || !Number.isFinite(Number(currentCount))) {
-    count = props.direction === "down" ? props.startValue : 0;
-  } else {
-    count = Math.trunc(Number(currentCount));
+  let presetNode = overlay.querySelector(".counter-preset");
+  let directionNode = overlay.querySelector(".counter-direction");
+  let wordNode = overlay.querySelector(".counter-word");
+  let currentNode = overlay.querySelector(".counter-current");
+  if (!presetNode || !directionNode || !wordNode || !currentNode) {
+    overlay.textContent = "";
+    presetNode = document.createElement("div"); presetNode.className = "counter-preset";
+    directionNode = document.createElement("div"); directionNode.className = "counter-direction";
+    wordNode = document.createElement("div"); wordNode.className = "counter-word";
+    currentNode = document.createElement("div"); currentNode.className = "counter-current";
+    overlay.append(presetNode, directionNode, wordNode, currentNode);
   }
 
-  const tooltip =
-    fullPreset.length > 6
-      ? ` title="${fullPreset}"`
-      : "";
-
-  overlay.innerHTML = `
-    <div class="counter-preset"${tooltip}>${shortPreset}</div>
-    <div class="counter-direction">${directionWord}</div>
-    <div class="counter-word">Counter</div>
-    <div class="counter-current">${count}</div>
-  `;
+  if (presetNode.textContent !== shortPreset) presetNode.textContent = shortPreset;
+  const tooltip = fullPreset.length > 6 ? fullPreset : "";
+  if (presetNode.title !== tooltip) presetNode.title = tooltip;
+  if (directionNode.textContent !== directionWord) directionNode.textContent = directionWord;
+  if (wordNode.textContent !== "Counter") wordNode.textContent = "Counter";
+  if (currentNode.textContent !== String(count)) currentNode.textContent = String(count);
 }
 
 
@@ -2298,40 +2311,32 @@ function renderCounterOutputState(tile, currentCount = null) {
 
   let outputState = false;
   let notOutputState = false;
-
-  if (
-    plcState === "RUNNING" &&
-    !editorEnabled &&
-    currentCount != null &&
-    Number.isFinite(Number(currentCount))
-  ) {
-    const props = normalizeCounterProperties(
-      JSON.parse(tile.dataset.properties || "{}")
-    );
+  if (plcState === "RUNNING" && !editorEnabled && currentCount != null && Number.isFinite(Number(currentCount))) {
+    const props = normalizeCounterProperties(JSON.parse(tile.dataset.properties || "{}"));
     const count = Math.trunc(Number(currentCount));
-
-    outputState =
-      props.direction === "down"
-        ? count <= 0
-        : count >= props.preset;
-
+    outputState = props.direction === "down" ? count <= 0 : count >= props.preset;
     notOutputState = !outputState;
   }
 
-  overlay.innerHTML = `
-    <img
-      class="counter-output-rung output ${outputState ? "on" : ""}"
-      src="./images/counter.png"
-      alt=""
-      draggable="false"
-    >
-    <img
-      class="counter-output-rung not-output ${notOutputState ? "on" : ""}"
-      src="./images/counter.png"
-      alt=""
-      draggable="false"
-    >
-  `;
+  let outputRung = overlay.querySelector(".counter-output-rung.output");
+  let notOutputRung = overlay.querySelector(".counter-output-rung.not-output");
+  if (!outputRung || !notOutputRung) {
+    overlay.textContent = "";
+    outputRung = document.createElement("img");
+    outputRung.className = "counter-output-rung output";
+    outputRung.src = "./images/counter.png";
+    outputRung.alt = "";
+    outputRung.draggable = false;
+    notOutputRung = document.createElement("img");
+    notOutputRung.className = "counter-output-rung not-output";
+    notOutputRung.src = "./images/counter.png";
+    notOutputRung.alt = "";
+    notOutputRung.draggable = false;
+    overlay.append(outputRung, notOutputRung);
+  }
+
+  if (outputRung.classList.contains("on") !== outputState) outputRung.classList.toggle("on", outputState);
+  if (notOutputRung.classList.contains("on") !== notOutputState) notOutputRung.classList.toggle("on", notOutputState);
 }
 
 function refreshAllCounterOutputStates(counterStates = null) {
@@ -2342,9 +2347,7 @@ function refreshAllCounterOutputStates(counterStates = null) {
     stateMap.set(String(item[0]), Number(item[1]));
   }
 
-  ladderCanvas
-    .querySelectorAll('.placed-tile[data-program-type="counter"]')
-    .forEach(tile => {
+  monitoringTilesForType("counter").forEach(tile => {
       const id = String(tile.dataset.blockId || "");
       renderCounterOutputState(
         tile,
@@ -2371,9 +2374,7 @@ function refreshAllCounterOverlays(counterStates = null) {
     stateMap.set(String(item[0]), Number(item[1]));
   }
 
-  ladderCanvas
-    .querySelectorAll('.placed-tile[data-program-type="counter"]')
-    .forEach(tile => {
+  monitoringTilesForType("counter").forEach(tile => {
       const id = String(tile.dataset.blockId || "");
       renderCounterRuntimeOverlay(
         tile,
@@ -2586,6 +2587,37 @@ bindingLabelObserver.observe(ladderCanvas, {
   childList:true,
   attributes:true,
   attributeFilter:["data-properties", "data-major-column", "data-major-row", "data-program-type", "data-block-id"]
+});
+
+
+// v1.87: invalidate the monitoring topology only when an actual placed ladder
+// element is added, removed, moved, retyped, rebound or reconfigured. Runtime
+// overlays/classes deliberately do not invalidate the cache.
+const monitoringTopologyObserver = new MutationObserver(mutations => {
+  const topologyChanged = mutations.some(mutation => {
+    if (mutation.type === "attributes") {
+      return mutation.target?.classList?.contains("placed-tile");
+    }
+    if (mutation.type === "childList") {
+      const nodes = [...mutation.addedNodes, ...mutation.removedNodes];
+      return nodes.some(node =>
+        node?.nodeType === 1 &&
+        (node.classList?.contains("placed-tile") || node.querySelector?.(".placed-tile"))
+      );
+    }
+    return false;
+  });
+  if (topologyChanged) invalidateMonitoringTopologyCache();
+});
+monitoringTopologyObserver.observe(ladderCanvas, {
+  subtree: true,
+  childList: true,
+  attributes: true,
+  attributeFilter: [
+    "data-block-id", "data-program-type", "data-block-type",
+    "data-major-column", "data-major-row", "data-span-rows",
+    "data-overlay", "data-properties", "data-ports", "data-variant"
+  ]
 });
 
 function refreshBooleanBindingMetadata() {
@@ -4130,6 +4162,12 @@ function stopIoMonitoringPolling(clearSnapshot = false) {
     clearInterval(ioMonitorPollTimer);
     ioMonitorPollTimer = null;
   }
+  if (monitoringFrameRequest != null) {
+    cancelAnimationFrame(monitoringFrameRequest);
+    monitoringFrameRequest = null;
+  }
+  pendingMonitoringSnapshot = null;
+  pendingMonitoringFrameStartMs = 0;
   ioMonitorPollInFlight = false;
   if (clearSnapshot) {
     latestProcessState = null;
@@ -4193,7 +4231,7 @@ function startIoMonitoringPolling() {
   resetGuiTimingDiagnostics();
   requestProcessStateForIoMonitoring();
   // Online I/O monitoring is deliberately faster for responsive animation:
-  // 10 Hz = one process-image request every 100 ms.
+  // Final production monitoring target: approximately 30 Hz (33 ms).
   ioMonitorPollTimer = setInterval(requestProcessStateForIoMonitoring, 33);
 }
 
@@ -4228,6 +4266,110 @@ function setPlcState(nextState, detail = "") {
   updateMonitoringUi();
 }
 
+function invalidateMonitoringTopologyCache() {
+  monitoringTopologyCache = null;
+  monitoringVisualState.clear();
+}
+
+function buildMonitoringTopologyCache() {
+  const tiles = [...ladderCanvas.querySelectorAll(".placed-tile")];
+  const entries = tiles
+    .map(tile => ({ tile, block: serializePlacedBlock(tile) }))
+    .filter(entry => !!entry.block);
+  const blocks = entries.map(entry => entry.block);
+  const tileById = new Map(entries.map(entry => [String(entry.block.id), entry.tile]));
+
+  const maxRows = blocks.length
+    ? Math.max(majorRows, ...blocks.map(block => block.position.row + (block.geometry?.spanRows || 1)))
+    : majorRows;
+  const columns = 9;
+  const cellKey = (row, col) => `${row}:${col}`;
+  const blockByCell = new Map();
+  const verticalShuntsByColumn = new Map();
+
+  for (const block of blocks) {
+    if (block.type === "vertical_shunt") {
+      const list = verticalShuntsByColumn.get(block.position.col) || [];
+      list.push(block);
+      verticalShuntsByColumn.set(block.position.col, list);
+      continue;
+    }
+
+    blockByCell.set(cellKey(block.position.row, block.position.col), block);
+
+    // Function blocks can expose Boolean input/output paths on lower rows.
+    if (["timer","counter","add","subtract","multiply","divide","block_move","analog_in","analog_out","pid"].includes(block.type)) {
+      const secondaryRows = [];
+      if (block.type === "timer" || block.type === "counter") secondaryRows.push(1);
+      if (block.type === "subtract" || block.type === "divide") secondaryRows.push(1, 2);
+      for (const rel of secondaryRows) {
+        blockByCell.set(cellKey(block.position.row + rel, block.position.col), block);
+      }
+    }
+  }
+
+  // Precompute vertical-shunt connected row groups. This topology cannot change
+  // in Online Monitoring because the editor is disabled.
+  const verticalGroupsByColumn = new Map();
+  for (const [col, shunts] of verticalShuntsByColumn.entries()) {
+    const parent = Array.from({ length: maxRows }, (_, i) => i);
+    const find = x => parent[x] === x ? x : (parent[x] = find(parent[x]));
+    const unite = (a, b) => {
+      a = find(a);
+      b = find(b);
+      if (a !== b) parent[b] = a;
+    };
+
+    for (const shunt of shunts) {
+      const startRow = shunt.position.row;
+      const span = shunt.geometry?.spanRows || 2;
+      for (let r = startRow; r < Math.min(maxRows - 1, startRow + span - 1); r++) unite(r, r + 1);
+    }
+
+    const groups = new Map();
+    for (let row = 0; row < maxRows; row++) {
+      const root = find(row);
+      const members = groups.get(root) || [];
+      members.push(row);
+      groups.set(root, members);
+    }
+
+    verticalGroupsByColumn.set(col, [...groups.values()]
+      .filter(members => members.length > 1)
+      .map(members => ({
+        members,
+        shunts: shunts.filter(shunt => {
+          const startRow = shunt.position.row;
+          const endRow = startRow + (shunt.geometry?.spanRows || 2) - 1;
+          return members.some(r => r >= startRow && r <= endRow);
+        })
+      })));
+  }
+
+  for (const { tile, block } of entries) {
+    if (block.type === "timer" || block.type === "counter") {
+      tile.classList.remove("monitor-powered", "monitor-power-in", "live-powered", "live-power-in");
+      if (tile.style.filter !== "none") tile.style.filter = "none";
+    }
+  }
+
+  monitoringTopologyCache = {
+    blocks,
+    entries,
+    tileById,
+    maxRows,
+    columns,
+    cellKey,
+    blockByCell,
+    verticalGroupsByColumn
+  };
+  return monitoringTopologyCache;
+}
+
+function getMonitoringTopologyCache() {
+  return monitoringTopologyCache || buildMonitoringTopologyCache();
+}
+
 function clearLivePowerVisualization() {
   ladderCanvas.querySelectorAll(".placed-tile").forEach(tile => {
     tile.classList.remove(
@@ -4241,6 +4383,8 @@ function clearLivePowerVisualization() {
   ladderCanvas
     .querySelectorAll(".counter-output-rung, .timer-output-rung")
     .forEach(rung => rung.classList.remove("on"));
+
+  monitoringVisualState.clear();
 }
 
 function processStateMap(snapshot) {
@@ -4270,12 +4414,7 @@ function contactClosed(block, ioState) {
 
     case "pgt_contact":
     case "ngt_contact":
-      /*
-        PGT/NGT are one-scan transition events. Browser monitoring runs much
-        slower than the PLC scan and therefore cannot represent that pulse
-        reliably. Never infer transition power from the steady input state.
-        These contacts intentionally remain visually unpowered.
-      */
+      // One-scan transition events cannot be represented faithfully at 30 Hz.
       return false;
 
     default:
@@ -4284,22 +4423,30 @@ function contactClosed(block, ioState) {
 }
 
 function setMonitoringGlow(blockId, powerIn, powerOut) {
-  const tile = ladderCanvas.querySelector(
-    `.placed-tile[data-block-id="${CSS.escape(String(blockId))}"]`
-  );
+  const id = String(blockId);
+  const cache = getMonitoringTopologyCache();
+  const tile = cache.tileById.get(id);
   if (!tile) return;
-  tile.classList.toggle("monitor-power-in", !!powerIn);
-  tile.classList.toggle("monitor-powered", !!powerOut);
+
+  const nextIn = !!powerIn;
+  const nextOut = !!powerOut;
+  const previous = monitoringVisualState.get(id);
+
+  // Avoid DOM/class mutation unless the corresponding state actually changed.
+  if (!previous || previous.powerIn !== nextIn) {
+    tile.classList.toggle("monitor-power-in", nextIn);
+  }
+  if (!previous || previous.powerOut !== nextOut) {
+    tile.classList.toggle("monitor-powered", nextOut);
+  }
+  monitoringVisualState.set(id, { powerIn: nextIn, powerOut: nextOut });
 }
 
 function applyAbsoluteMonitoringView(snapshot) {
-  clearLivePowerVisualization();
   const ioState = processStateMap(snapshot);
+  const cache = getMonitoringTopologyCache();
 
-  for (const tile of ladderCanvas.querySelectorAll(".placed-tile")) {
-    const block = serializePlacedBlock(tile);
-    if (!block) continue;
-
+  for (const { tile, block } of cache.entries) {
     let active = false;
 
     switch (block.type) {
@@ -4307,40 +4454,19 @@ function applyAbsoluteMonitoringView(snapshot) {
       case "normally_closed":
         active = contactClosed(block, ioState);
         break;
-
       case "pgt_contact":
       case "ngt_contact":
-        // Transition contacts are intentionally never illuminated.
-        active = false;
-        break;
-
       case "horizontal_shunt":
       case "vertical_shunt":
-        // Shunts are topology-only elements. In Absolute View they never glow.
+      case "counter":
+      case "timer":
         active = false;
         break;
-
       case "coil": {
         const binding = blockBinding(block);
         active = binding ? !!ioState.get(String(binding)) : false;
         break;
       }
-
-      // Function blocks that electrically pass rung power are shown active
-      // while the PLC is running. Their detailed state-specific telemetry is
-      // added with their runtime implementations.
-      case "counter":
-        // Counter block itself never glows. Its complementary output rungs are
-        // rendered separately from the live counter state.
-        active = false;
-        break;
-
-      case "timer":
-        // Timer body never glows. Only its complementary output rungs show
-        // the live Done / Not Done state.
-        active = false;
-        break;
-
       case "add":
       case "subtract":
       case "multiply":
@@ -4351,70 +4477,26 @@ function applyAbsoluteMonitoringView(snapshot) {
       case "pid":
         active = true;
         break;
-
       default:
         active = false;
     }
 
-    tile.classList.toggle("monitor-powered", active);
+    setMonitoringGlow(block.id, false, active);
   }
 }
 
 function applySeriesMonitoringView(snapshot) {
-  clearLivePowerVisualization();
   const ioState = processStateMap(snapshot);
-  const blocks = [...ladderCanvas.querySelectorAll(".placed-tile")]
-    .map(serializePlacedBlock)
-    .filter(Boolean);
+  const cache = getMonitoringTopologyCache();
+  if (!cache.blocks.length) return;
 
-  if (!blocks.length) return;
+  let boundary = Array.from({ length: cache.maxRows }, () => true);
 
-  const maxRows = Math.max(
-    majorRows,
-    ...blocks.map(block => block.position.row + (block.geometry?.spanRows || 1))
-  );
-  const columns = 9;
-  const cellKey = (row, col) => `${row}:${col}`;
+  for (let col = 0; col < cache.columns; col++) {
+    const rawNext = Array(cache.maxRows).fill(false);
 
-  const ordinaryByCell = new Map();
-  const functionBlocks = [];
-  const verticalShuntsByColumn = new Map();
-
-  for (const block of blocks) {
-    if (block.type === "vertical_shunt") {
-      const list = verticalShuntsByColumn.get(block.position.col) || [];
-      list.push(block);
-      verticalShuntsByColumn.set(block.position.col, list);
-      continue;
-    }
-
-    if (["timer","counter","add","subtract","multiply","divide","block_move","analog_in","analog_out","pid"].includes(block.type)) {
-      functionBlocks.push(block);
-    }
-
-    ordinaryByCell.set(cellKey(block.position.row, block.position.col), block);
-  }
-
-  // Every row starts connected to the energized left rail.
-  let boundary = Array.from({ length: maxRows }, () => true);
-
-  for (let col = 0; col < columns; col++) {
-    const rawNext = Array(maxRows).fill(false);
-
-    for (let row = 0; row < maxRows; row++) {
-      let block = ordinaryByCell.get(cellKey(row, col));
-
-      if (!block) {
-        block = functionBlocks.find(fn => {
-          if (fn.position.col !== col) return false;
-          const rel = row - fn.position.row;
-          if (rel <= 0) return false;
-          if (fn.type === "timer" || fn.type === "counter") return rel === 1;
-          if (fn.type === "subtract" || fn.type === "divide") return rel === 1 || rel === 2;
-          return false;
-        });
-      }
-
+    for (let row = 0; row < cache.maxRows; row++) {
+      const block = cache.blockByCell.get(cache.cellKey(row, col));
       if (!block) continue;
 
       const powerIn = !!boundary[row];
@@ -4425,42 +4507,22 @@ function applySeriesMonitoringView(snapshot) {
         case "normally_closed":
           powerOut = powerIn && contactClosed(block, ioState);
           break;
-
         case "pgt_contact":
         case "ngt_contact":
-          /*
-            Do not attempt to visualize a one-scan transition pulse at 10 Hz.
-            The contact stays dark and is treated as a break in the monitoring
-            visualization so downstream glow cannot falsely imply steady power.
-          */
           setMonitoringGlow(block.id, false, false);
           powerOut = false;
           break;
-
         case "horizontal_shunt":
           powerOut = powerIn;
           break;
-
         case "coil":
-          // A coil is a terminal: it glows when rung power reaches it, but does
-          // not propagate power into the next column.
           setMonitoringGlow(block.id, powerIn, powerIn);
           continue;
-
         case "counter":
-          // Counter body never glows. Only its two right-side output rungs
-          // show the complementary Done / Not Done states.
-          setMonitoringGlow(block.id, false, false);
-          powerOut = false;
-          break;
-
         case "timer":
-          // Timer body never glows. Its output state is displayed only on the
-          // two right-side complementary output rungs.
           setMonitoringGlow(block.id, false, false);
           powerOut = false;
           break;
-
         case "add":
         case "subtract":
         case "multiply":
@@ -4469,12 +4531,8 @@ function applySeriesMonitoringView(snapshot) {
         case "analog_in":
         case "analog_out":
         case "pid":
-          // For currently implemented monitoring, function blocks are treated
-          // as electrically continuous. More detailed enable/output telemetry
-          // can override this as each runtime block is implemented.
           powerOut = powerIn;
           break;
-
         default:
           powerOut = false;
       }
@@ -4483,47 +4541,14 @@ function applySeriesMonitoringView(snapshot) {
       rawNext[row] = powerOut;
     }
 
-    // Mirror the optimizer's vertical-shunt connectivity. Any powered branch
-    // in a connected vertical group energizes the entire joined boundary.
-    const shunts = verticalShuntsByColumn.get(col) || [];
-    if (shunts.length) {
-      const parent = Array.from({ length: maxRows }, (_, i) => i);
-      const find = x => parent[x] === x ? x : (parent[x] = find(parent[x]));
-      const unite = (a, b) => {
-        a = find(a);
-        b = find(b);
-        if (a !== b) parent[b] = a;
-      };
+    const groups = cache.verticalGroupsByColumn.get(col) || [];
+    for (const group of groups) {
+      const joinedPower = group.members.some(r => rawNext[r]);
+      if (joinedPower) group.members.forEach(r => { rawNext[r] = true; });
 
-      for (const shunt of shunts) {
-        const startRow = shunt.position.row;
-        const span = shunt.geometry?.spanRows || 2;
-        for (let r = startRow; r < Math.min(maxRows - 1, startRow + span - 1); r++) {
-          unite(r, r + 1);
-        }
-      }
-
-      const groups = new Map();
-      for (let row = 0; row < maxRows; row++) {
-        const root = find(row);
-        const members = groups.get(root) || [];
-        members.push(row);
-        groups.set(root, members);
-      }
-
-      for (const members of groups.values()) {
-        if (members.length < 2) continue;
-        const joinedPower = members.some(r => rawNext[r]);
-        if (joinedPower) members.forEach(r => { rawNext[r] = true; });
-
-        for (const shunt of shunts) {
-          const startRow = shunt.position.row;
-          const endRow = startRow + (shunt.geometry?.spanRows || 2) - 1;
-          if (members.some(r => r >= startRow && r <= endRow)) {
-            const shuntInput = members.some(r => boundary[r] || rawNext[r]);
-            setMonitoringGlow(shunt.id, shuntInput, joinedPower);
-          }
-        }
+      for (const shunt of group.shunts) {
+        const shuntInput = group.members.some(r => boundary[r] || rawNext[r]);
+        setMonitoringGlow(shunt.id, shuntInput, joinedPower);
       }
     }
 
@@ -4537,35 +4562,50 @@ function applyMonitoringView(snapshot = latestProcessState) {
     return;
   }
 
-  if (monitoringViewMode === "absolute") {
-    applyAbsoluteMonitoringView(snapshot);
-  } else {
-    applySeriesMonitoringView(snapshot);
-  }
+  if (monitoringViewMode === "absolute") applyAbsoluteMonitoringView(snapshot);
+  else applySeriesMonitoringView(snapshot);
 
-  // Timer and Counter bodies never glow. Only their complementary right-side
-  // output rung segments are allowed to show live state.
-  ladderCanvas
-    .querySelectorAll(
-      '.placed-tile[data-program-type="timer"], .placed-tile[data-program-type="counter"]'
-    )
-    .forEach(tile => {
-      tile.classList.remove(
-        "monitor-powered",
-        "monitor-power-in",
-        "live-powered",
-        "live-power-in"
-      );
-      tile.style.filter = "none";
-    });
+}
+
+function applyPendingMonitoringFrame() {
+  monitoringFrameRequest = null;
+  const snapshot = pendingMonitoringSnapshot;
+  const frameStartMs = pendingMonitoringFrameStartMs || performance.now();
+  pendingMonitoringSnapshot = null;
+  pendingMonitoringFrameStartMs = 0;
+
+  if (!snapshot || plcState !== "RUNNING" || editorEnabled) return;
+
+  const updateStartMs = performance.now();
+  refreshAllTimerOverlays(snapshot.timers || []);
+  refreshAllTimerOutputStates(snapshot.timers || []);
+  refreshAllCounterOverlays(snapshot.counters || []);
+  refreshAllCounterOutputStates(snapshot.counters || []);
+  applyMonitoringView(snapshot);
+  recordGuiTiming("update", performance.now() - updateStartMs);
+
+  // This callback executes before the current paint. The next animation-frame
+  // callback therefore samples latency through that paint boundary.
+  requestAnimationFrame(() => {
+    recordGuiTiming("frame", performance.now() - frameStartMs);
+  });
+}
+
+function scheduleMonitoringFrame(snapshot) {
+  if (!snapshot || plcState !== "RUNNING" || editorEnabled) return;
+  pendingMonitoringSnapshot = snapshot;
+  // Use the newest snapshot arrival as the latency origin when multiple USB
+  // replies arrive before the browser has painted a frame.
+  pendingMonitoringFrameStartMs = performance.now();
+  if (monitoringFrameRequest != null) return;
+  monitoringFrameRequest = requestAnimationFrame(applyPendingMonitoringFrame);
 }
 
 function applyLiveSnapshot(snapshot) {
-  // Keep compatibility with future firmware block-level telemetry. The current
-  // monitoring modes are driven from PROCESS_STATE so the view semantics remain
-  // consistent even before dedicated block telemetry is implemented.
+  // Keep compatibility with future firmware block-level telemetry. Batch any
+  // visual work into the same browser animation-frame path used by PROCESS_STATE.
   if (plcState !== "RUNNING" || editorEnabled) return;
-  if (latestProcessState) applyMonitoringView(latestProcessState);
+  if (latestProcessState) scheduleMonitoringFrame(latestProcessState);
 }
 
 function updateMonitoringUi() {
@@ -4581,8 +4621,9 @@ function updateMonitoringUi() {
       : "View: Absolute";
 
   if (onlineMonitoring) {
+    getMonitoringTopologyCache();
     startIoMonitoringPolling();
-    applyMonitoringView();
+    if (latestProcessState) scheduleMonitoringFrame(latestProcessState);
   } else {
     stopIoMonitoringPolling(false);
     clearLivePowerVisualization();
@@ -4710,25 +4751,13 @@ function dispatchPlcMessage(message) {
   if (!message || typeof message !== "object") return;
   if (message.type === "LIVE_SNAPSHOT") { applyLiveSnapshot(message); return; }
   if (message.type === "PROCESS_STATE") {
-    const measureOnlineRedraw = plcConnected && plcState === "RUNNING" && !editorEnabled;
-    const guiRedrawStartMs = measureOnlineRedraw ? performance.now() : 0;
-
     latestProcessState = message;
     setAverageScanTime(message.avgScanTimeUs ?? message.averageScanTimeUs);
-    refreshAllTimerOverlays(message.timers || []);
-    refreshAllTimerOutputStates(message.timers || []);
-    refreshAllCounterOverlays(message.counters || []);
-    refreshAllCounterOutputStates(message.counters || []);
-    applyMonitoringView(message);
 
-    if (measureOnlineRedraw) {
-      // Synchronous cost: JSON has already been parsed; this is the browser work
-      // needed to update overlays, evaluate monitoring visualization and mutate DOM.
-      recordGuiTiming("update", performance.now() - guiRedrawStartMs);
-      // Frame latency: includes the DOM update plus browser scheduling/rendering
-      // through the next paint boundary. This is the useful upper-bound measure
-      // when choosing a live-monitoring refresh rate.
-      scheduleGuiFrameTimingSample(guiRedrawStartMs);
+    // v1.87: do not redraw in the USB-message handler. Keep only the newest
+    // snapshot and apply all visual changes together immediately before paint.
+    if (plcConnected && plcState === "RUNNING" && !editorEnabled) {
+      scheduleMonitoringFrame(message);
     }
 
     // Let an explicit GET_PROCESS_STATE waiter consume the message as well.
