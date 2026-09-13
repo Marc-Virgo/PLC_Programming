@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v2.00</title>
+  <title>Ladder Logic — v2.01</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile-icon{display:block;max-width:100%;height:40px;width:auto;object-fit:contain;pointer-events:none}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -638,6 +638,56 @@
   text-overflow:ellipsis;
 }
 
+
+.multiply-runtime-overlay{
+  position:absolute;
+  width:140px;
+  height:280px;
+  pointer-events:none;
+  z-index:32;
+  font-family:Arial,Helvetica,sans-serif;
+  color:#111827;
+}
+.multiply-runtime-overlay > div{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  width:126px;
+  text-align:center;
+  font-size:13px;
+  font-weight:700;
+  line-height:16px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.multiply-runtime-overlay .mult-a{top:76px;}
+.multiply-runtime-overlay .mult-op{top:112px;}
+.multiply-runtime-overlay .mult-b{top:148px;}
+.multiply-runtime-overlay .mult-result{top:184px;}
+.multiply-runtime-overlay .mult-result-value{
+  position:absolute;
+  top:207px;
+  left:50%;
+  transform:translateX(-50%);
+  min-width:88px;
+  max-width:126px;
+  height:27px;
+  padding:2px 7px;
+  border:2px solid #111827;
+  border-radius:3px;
+  background:#fff;
+  color:#111827;
+  font-family:Consolas,"Courier New",monospace;
+  font-size:16px;
+  line-height:19px;
+  font-weight:700;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
 /* v1.95 ADD monitoring:
    the block body never glows. Only the normal and overflow output conductors
    are highlighted when the corresponding output is TRUE. */
@@ -693,7 +743,7 @@
 <body>
 <div class="app">
 <header class="topbar">
-  <div class="title">Ladder Logic — v2.00</div>
+  <div class="title">Ladder Logic — v2.01</div>
 
   <div class="ribbon-main-controls">
     <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button>
@@ -2033,6 +2083,92 @@ async function promptForAddConfiguration(current = null, title = "Configure ADD"
   };
 }
 
+
+function normalizeMultiplyProperties(properties = {}, excludeTile = null) {
+  let multiplicand = parseMathSourceOperand(properties.multiplicand)?.text || null;
+  let multiplier = parseMathSourceOperand(properties.multiplier)?.text || null;
+  let result = parseRegisterAddress(properties.result)?.text || null;
+
+  if (!multiplicand || !multiplier || !result) {
+    const needed =
+      (!multiplicand ? 1 : 0) +
+      (!multiplier ? 1 : 0) +
+      (!result ? 1 : 0);
+    const allocated =
+      nextAvailableRegisterNumbers(needed, excludeTile).map(formatRegisterAddress);
+    let i = 0;
+    if (!multiplicand) multiplicand = allocated[i++];
+    if (!multiplier) multiplier = allocated[i++];
+    if (!result) result = allocated[i++];
+  }
+
+  return { ...properties, multiplicand, multiplier, result };
+}
+
+function compactMultiplyProperties(properties = {}) {
+  const srcA = parseMathSourceOperand(properties.multiplicand);
+  const srcB = parseMathSourceOperand(properties.multiplier);
+  const destination = parseRegisterAddress(properties.result);
+
+  if (!srcA || !srcB || !destination) {
+    throw new Error(
+      "MULT requires a valid multiplicand, multiplier, and R:xxxxx destination register."
+    );
+  }
+
+  return {
+    srcA: { type: srcA.kind === "literal" ? 1 : 0, value: srcA.value },
+    srcB: { type: srcB.kind === "literal" ? 1 : 0, value: srcB.value },
+    destination: destination.number
+  };
+}
+
+async function promptForMultiplyConfiguration(
+  current = null,
+  title = "Configure MULT",
+  excludeTile = null
+) {
+  let values;
+  try {
+    values = normalizeMultiplyProperties(current || {}, excludeTile);
+  } catch (error) {
+    alert(error.message || String(error));
+    return null;
+  }
+
+  const updated = await showElementPropertyEditor({
+    title,
+    fields: elementEditorFields("multiply"),
+    values
+  });
+  if (!updated) return null;
+
+  const multiplicand = parseMathSourceOperand(updated.multiplicand);
+  const multiplier = parseMathSourceOperand(updated.multiplier);
+  const destination = parseRegisterAddress(updated.result);
+
+  if (!multiplicand) {
+    alert("Multiplicand must be R:xxxxx or a signed 32-bit integer.");
+    return promptForMultiplyConfiguration({ ...values, ...updated }, title, excludeTile);
+  }
+  if (!multiplier) {
+    alert("Multiplier must be R:xxxxx or a signed 32-bit integer.");
+    return promptForMultiplyConfiguration({ ...values, ...updated }, title, excludeTile);
+  }
+  if (!destination) {
+    alert("Result must be a register in R:00000-R:09999 format.");
+    return promptForMultiplyConfiguration({ ...values, ...updated }, title, excludeTile);
+  }
+
+  return {
+    ...values,
+    ...updated,
+    multiplicand: multiplicand.text,
+    multiplier: multiplier.text,
+    result: destination.text
+  };
+}
+
 function normalizeSubtractProperties(properties = {}, excludeTile = null) {
   let minuend = parseMathSourceOperand(properties.minuend)?.text || null;
   let subtrahend = parseMathSourceOperand(properties.subtrahend)?.text || null;
@@ -2167,7 +2303,11 @@ function elementEditorFields(type) {
       { key:"subtrahend", label:"Subtrahend (R:xxxxx or integer)", type:"text", placeholder:"R:00001 or -25" },
       { key:"result", label:"Result Register", type:"text", placeholder:"R:00002" }
     ];
-    case "multiply": return [reg("multiplicand","Multiplicand"), reg("multiplier","Multiplier"), reg("result","Result")];
+    case "multiply": return [
+      { key:"multiplicand", label:"Multiplicand (R:xxxxx or integer)", type:"text", placeholder:"R:00000 or 10" },
+      { key:"multiplier", label:"Multiplier (R:xxxxx or integer)", type:"text", placeholder:"R:00001 or -2" },
+      { key:"result", label:"Result Register", type:"text", placeholder:"R:00002" }
+    ];
     case "divide": return [reg("dividend","Dividend"), reg("divisor","Divisor"), reg("result","Quotient / Result"), reg("remainder","Remainder")];
     case "block_move": return [reg("source","Source"), reg("destination","Destination"), {key:"length",label:"Table Length",type:"number",min:1,step:1,integer:true}];
     case "analog_in": return [reg("adcInput","ADC Input"), reg("result","Result Register"), reg("sampleRateTimer","Sample-rate Timer")];
@@ -2668,12 +2808,88 @@ function processStateAddMap(snapshot) {
   return map;
 }
 
+
+function ensureMultiplyRuntimeOverlay(tile) {
+  if (!tile || tile.dataset.programType !== "multiply") return null;
+  const id = String(tile.dataset.blockId || "");
+  let overlay = ladderCanvas.querySelector(
+    `.multiply-runtime-overlay[data-block-id="${CSS.escape(id)}"]`
+  );
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "multiply-runtime-overlay";
+    overlay.dataset.blockId = id;
+    ladderCanvas.appendChild(overlay);
+  }
+  overlay.style.left = tile.style.left;
+  overlay.style.top = tile.style.top;
+  return overlay;
+}
+
+function renderMultiplyRuntimeOverlay(tile, resultValue = null) {
+  if (!tile || tile.dataset.programType !== "multiply") return;
+  let props = {};
+  try { props = JSON.parse(tile.dataset.properties || "{}"); } catch (error) {}
+
+  const overlay = ensureMultiplyRuntimeOverlay(tile);
+  if (!overlay) return;
+
+  const a = parseMathSourceOperand(props.multiplicand)?.text || "";
+  const b = parseMathSourceOperand(props.multiplier)?.text || "";
+  const result = parseRegisterAddress(props.result)?.text || "";
+  const value =
+    resultValue != null && Number.isFinite(Number(resultValue))
+      ? String(Math.trunc(Number(resultValue)))
+      : "—";
+
+  overlay.innerHTML = `
+    <div class="mult-a">${a}</div>
+    <div class="mult-op">Multiply</div>
+    <div class="mult-b">${b}</div>
+    <div class="mult-result">${result}</div>
+    <div class="mult-result-value">${value}</div>
+  `;
+}
+
+function processStateMultiplyMap(snapshot) {
+  const map = new Map();
+  for (const item of snapshot?.mults || []) {
+    if (!Array.isArray(item) || item.length < 3) continue;
+    map.set(String(item[0]), {
+      evaluatedScan: Number.isFinite(Number(item[1])) ? Number(item[1]) : null,
+      overflow: !!item[2]
+    });
+  }
+  return map;
+}
+
+function refreshAllMultiplyOverlays(snapshot = latestProcessState) {
+  const registers = processStateRegisterMap(snapshot);
+  const mults = processStateMultiplyMap(snapshot);
+
+  monitoringTilesForType("multiply").forEach(tile => {
+    let props = {};
+    try { props = JSON.parse(tile.dataset.properties || "{}"); } catch (error) {}
+    const result = parseRegisterAddress(props.result)?.text || null;
+    const value = result && registers.has(result) ? registers.get(result) : null;
+    renderMultiplyRuntimeOverlay(tile, value);
+
+    const telemetry = mults.get(String(tile.dataset.blockId || ""));
+    const valueNode = ensureMultiplyRuntimeOverlay(tile)?.querySelector(".mult-result-value");
+    if (valueNode && telemetry?.evaluatedScan != null) {
+      valueNode.title =
+        `Current contents of ${result || "result register"}; MULT last executed on PLC scan ${telemetry.evaluatedScan}`;
+    }
+  });
+}
+
 function ensureSubtractRuntimeOverlay(tile) {
   if (!tile || tile.dataset.programType !== "subtract") return null;
 
   const id = String(tile.dataset.blockId || "");
   let overlay = ladderCanvas.querySelector(
-    `.subtract-runtime-overlay[data-block-id="${CSS.escape(id)}"]`
+    `.subtract-runtime-overlay[data-block-id="${CSS.escape(id)}"],
+       .multiply-runtime-overlay[data-block-id="${CSS.escape(id)}"]`
   );
 
   if (!overlay) {
@@ -3215,6 +3431,18 @@ async function editPlacedElement(tile) {
     scheduleLadderWorkspaceAutosave();
     return;
   }
+  if (type === "multiply") {
+    const updatedMult = await promptForMultiplyConfiguration(
+      properties,
+      "Edit MULT",
+      tile
+    );
+    if (!updatedMult) return;
+    tile.dataset.properties = JSON.stringify(updatedMult);
+    renderMultiplyRuntimeOverlay(tile);
+    scheduleLadderWorkspaceAutosave();
+    return;
+  }
 
   const fields = elementEditorFields(type);
   if (!fields.length) return;
@@ -3403,7 +3631,6 @@ function defaultPortsForType(type) {
 
     case "horizontal_shunt":
     case "coil":
-    case "multiply":
     case "block_move":
     case "analog_in":
     case "analog_out":
@@ -3414,6 +3641,7 @@ function defaultPortsForType(type) {
       ];
 
     case "add":
+    case "multiply":
       return [
         boolPort("input", "input"),
         boolPort("output", "output"),
@@ -3502,7 +3730,6 @@ function runtimeFieldsForType(type) {
 
     case "horizontal_shunt":
     case "coil":
-    case "multiply":
     case "block_move":
     case "analog_in":
     case "analog_out":
@@ -3510,6 +3737,7 @@ function runtimeFieldsForType(type) {
       return ["input", "output"];
 
     case "add":
+    case "multiply":
       return ["input", "output", "overflow"];
 
     case "subtract":
@@ -3812,6 +4040,7 @@ function clearPlacedBlocks() {
   ladderCanvas.querySelectorAll(".add-runtime-overlay").forEach(label => label.remove());
   ladderCanvas.querySelectorAll(".add-output-state-overlay").forEach(label => label.remove());
   ladderCanvas.querySelectorAll(".subtract-runtime-overlay").forEach(label => label.remove());
+  ladderCanvas.querySelectorAll(".multiply-runtime-overlay").forEach(label => label.remove());
 }
 
 function createPlacedTileFromProgramBlock(block) {
@@ -3881,6 +4110,9 @@ function createPlacedTileFromProgramBlock(block) {
   }
   if (block.type === "subtract") {
     renderSubtractRuntimeOverlay(image);
+  }
+  if (block.type === "multiply") {
+    renderMultiplyRuntimeOverlay(image);
   }
   requestBindingGridLabelSync();
 }
@@ -4320,18 +4552,25 @@ function buildOptimizedProgram(program = buildProgramObject(), projectMeta = nul
         }
 
         case "multiply": {
-          // MULT has the same Boolean rung structure as ADD.
-          if (outputSelector !== 0 || !prior) break;
+          // MULT follows ADD exactly: register/literal operands,
+          // normal output on row 0, overflow output on row 1.
+          const enableExpr = boundary[block.position.row];
+          if (!enableExpr) break;
+
+          const compact = compactMultiplyProperties(block.properties || {});
           rawNext[row] = {
             kind: "function",
             opcode: optimizerOpcodes.multiply,
             id: block.id,
             params: [
-              block.properties?.multiplicand ?? null,
-              block.properties?.multiplier ?? null,
-              block.properties?.result ?? null
+              compact.srcA.type,
+              compact.srcA.value,
+              compact.srcB.type,
+              compact.srcB.value,
+              compact.destination,
+              outputSelector
             ],
-            inputs: [prior]
+            inputs: [enableExpr]
           };
           break;
         }
@@ -5058,7 +5297,7 @@ function buildMonitoringTopologyCache() {
     // Function blocks can expose Boolean input/output paths on lower rows.
     if (["timer","counter","add","subtract","multiply","divide","block_move","analog_in","analog_out","pid"].includes(block.type)) {
       const secondaryRows = [];
-      if (block.type === "timer" || block.type === "counter" || block.type === "add") secondaryRows.push(1);
+      if (block.type === "timer" || block.type === "counter" || block.type === "add" || block.type === "multiply") secondaryRows.push(1);
       if (block.type === "subtract" || block.type === "divide") secondaryRows.push(1, 2);
       for (const rel of secondaryRows) {
         blockByCell.set(cellKey(block.position.row + rel, block.position.col), block);
@@ -5374,7 +5613,25 @@ function applySeriesMonitoringView(snapshot) {
           continue;
         }
 
-        case "multiply":
+        case "multiply": {
+          const relativeRow = row - block.position.row;
+          const telemetry =
+            processStateMultiplyMap(snapshot).get(String(block.id)) || null;
+
+          setMonitoringGlow(block.id, false, false);
+
+          if (relativeRow === 0) {
+            powerOut = powerIn;
+          } else if (relativeRow === 1) {
+            powerOut = !!powerIn && !!telemetry?.overflow;
+          } else {
+            powerOut = false;
+          }
+
+          rawNext[row] = powerOut;
+          continue;
+        }
+
         case "divide":
         case "block_move":
         case "analog_in":
@@ -5432,6 +5689,7 @@ function applyPendingMonitoringFrame() {
   refreshAllCounterOutputStates(snapshot.counters || []);
   refreshAllAddOverlays(snapshot);
   refreshAllSubtractOverlays(snapshot);
+  refreshAllMultiplyOverlays(snapshot);
   applyMonitoringView(snapshot);
   recordGuiTiming("update", performance.now() - updateStartMs);
 
@@ -7037,8 +7295,14 @@ function commitGroupCopy() {
     if (placed.dataset.programType === "subtract") {
       renderSubtractRuntimeOverlay(placed);
     }
+    if (placed.dataset.programType === "multiply") {
+      renderMultiplyRuntimeOverlay(placed);
+    }
     if (placed.dataset.programType === "subtract") {
       renderSubtractRuntimeOverlay(placed);
+    }
+    if (placed.dataset.programType === "multiply") {
+      renderMultiplyRuntimeOverlay(placed);
     }
 
     newTiles.push(placed);
@@ -7759,6 +8023,13 @@ workspace.addEventListener("click", async event => {
     );
     if (!placementProperties) return;
   }
+  if (placementDefinition.programType === "multiply") {
+    placementProperties = await promptForMultiplyConfiguration(
+      placementProperties,
+      "Configure MULT"
+    );
+    if (!placementProperties) return;
+  }
 
   const image = document.createElement("img");
   image.src = placementImage;
@@ -7827,6 +8098,9 @@ workspace.addEventListener("click", async event => {
   }
   if (placementDefinition.programType === "subtract") {
     renderSubtractRuntimeOverlay(image);
+  }
+  if (placementDefinition.programType === "multiply") {
+    renderMultiplyRuntimeOverlay(image);
   }
   bringVerticalShuntsToFront();
   refreshBooleanBindingMetadata();
