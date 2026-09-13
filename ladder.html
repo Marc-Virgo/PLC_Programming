@@ -1987,7 +1987,93 @@ function normalizeTimerProperties(properties = {}) {
   return { ...properties, presetMs, presetDisplay };
 }
 
-async function promptForTimerConfiguration(current = null, title = "Configure Timer") {
+async function promptForTimerConfiguration(current = null, title = "Configure Timer", options = {}) {
+  const isNewPlacement = options.newPlacement === true;
+
+  // New Timer placement uses a deliberately blank field. The user may enter
+  // seconds as either an integer (10) or a float (10.5); Enter accepts it.
+  if (isNewPlacement) {
+    return new Promise(resolve => {
+      const backdrop = document.createElement("div");
+      backdrop.className = "binding-picker-backdrop";
+
+      const panel = document.createElement("div");
+      panel.className = "binding-picker";
+      panel.setAttribute("role", "dialog");
+      panel.setAttribute("aria-modal", "true");
+      panel.setAttribute("aria-label", title);
+
+      const heading = document.createElement("h3");
+      heading.textContent = title;
+
+      const help = document.createElement("p");
+      help.textContent = "Enter the timer preset in seconds as an integer or decimal value.";
+
+      const input = document.createElement("input");
+      input.type = "number";
+      input.inputMode = "decimal";
+      input.min = "0";
+      input.max = "99999.999";
+      input.step = "any";
+      input.placeholder = "Seconds";
+      input.autocomplete = "off";
+      input.value = "";
+
+      const actions = document.createElement("div");
+      actions.className = "binding-picker-actions";
+
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "binding-picker-cancel";
+      cancel.textContent = "Cancel";
+
+      const ok = document.createElement("button");
+      ok.type = "button";
+      ok.className = "binding-picker-ok";
+      ok.textContent = "Set Timer";
+
+      actions.append(cancel, ok);
+      panel.append(heading, help, input, actions);
+      backdrop.appendChild(panel);
+      document.body.appendChild(backdrop);
+
+      const finish = result => {
+        backdrop.remove();
+        resolve(result);
+      };
+
+      const submit = () => {
+        const raw = input.value.trim();
+        const seconds = Number(raw);
+        if (raw === "" || !Number.isFinite(seconds) || seconds < 0 || seconds > 99999.999) {
+          alert("Enter a timer value from 0 to 99999.999 seconds using an integer or decimal number.");
+          input.focus();
+          return;
+        }
+
+        const presetMs = Math.round(seconds * 1000);
+        finish(normalizeTimerProperties({ presetMs }));
+      };
+
+      cancel.addEventListener("click", () => finish(null));
+      ok.addEventListener("click", submit);
+      input.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          submit();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          finish(null);
+        }
+      });
+      backdrop.addEventListener("mousedown", event => {
+        if (event.target === backdrop) finish(null);
+      });
+
+      requestAnimationFrame(() => input.focus());
+    });
+  }
+
   const values = normalizeTimerProperties(
     current || defaultPropertiesForType("timer")
   );
@@ -6805,7 +6891,8 @@ workspace.addEventListener("click", async event => {
   if (placementDefinition.programType === "timer") {
     placementProperties = await promptForTimerConfiguration(
       placementProperties,
-      "Configure Timer"
+      "Configure Timer",
+      { newPlacement: true }
     );
     if (!placementProperties) return;
   }
