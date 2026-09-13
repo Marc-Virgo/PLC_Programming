@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v2.01</title>
+  <title>Ladder Logic — v2.02</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile-icon{display:block;max-width:100%;height:40px;width:auto;object-fit:contain;pointer-events:none}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -589,6 +589,65 @@
 }
 
 
+
+.divide-runtime-overlay{
+  position:absolute;
+  width:140px;
+  height:420px;
+  pointer-events:none;
+  z-index:32;
+  font-family:Arial,Helvetica,sans-serif;
+  color:#111827;
+}
+.divide-runtime-overlay > div{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  width:126px;
+  text-align:center;
+  font-size:13px;
+  font-weight:700;
+  line-height:16px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.divide-runtime-overlay .div-dividend{top:60px;}
+.divide-runtime-overlay .div-operation{top:94px;}
+.divide-runtime-overlay .div-divisor{top:128px;}
+.divide-runtime-overlay .div-quotient{top:166px;}
+.divide-runtime-overlay .div-quotient-value{
+  top:188px;
+  min-width:88px;
+  max-width:126px;
+  height:27px;
+  padding:2px 7px;
+  border:2px solid #111827;
+  border-radius:3px;
+  background:#fff;
+  color:#111827;
+  font-family:Consolas,"Courier New",monospace;
+  font-size:16px;
+  line-height:19px;
+  font-weight:700;
+}
+.divide-runtime-overlay .div-remainder{top:232px;}
+.divide-runtime-overlay .div-remainder-value{
+  top:254px;
+  min-width:88px;
+  max-width:126px;
+  height:27px;
+  padding:2px 7px;
+  border:2px solid #111827;
+  border-radius:3px;
+  background:#fff;
+  color:#111827;
+  font-family:Consolas,"Courier New",monospace;
+  font-size:16px;
+  line-height:19px;
+  font-weight:700;
+}
+
 .subtract-runtime-overlay{
   position:absolute;
   width:140px;
@@ -743,7 +802,7 @@
 <body>
 <div class="app">
 <header class="topbar">
-  <div class="title">Ladder Logic — v2.01</div>
+  <div class="title">Ladder Logic — v2.02</div>
 
   <div class="ribbon-main-controls">
     <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button>
@@ -2084,6 +2143,120 @@ async function promptForAddConfiguration(current = null, title = "Configure ADD"
 }
 
 
+
+function normalizeDivideProperties(properties = {}, excludeTile = null) {
+  let dividend = parseMathSourceOperand(properties.dividend)?.text || null;
+  let divisor = parseMathSourceOperand(properties.divisor)?.text || null;
+  let result = parseRegisterAddress(properties.result)?.text || null;
+  let remainder = parseRegisterAddress(properties.remainder)?.text || null;
+
+  if (!dividend || !divisor || !result || !remainder) {
+    const needed =
+      (!dividend ? 1 : 0) +
+      (!divisor ? 1 : 0) +
+      (!result ? 1 : 0) +
+      (!remainder ? 1 : 0);
+
+    const allocated =
+      nextAvailableRegisterNumbers(needed, excludeTile).map(formatRegisterAddress);
+
+    let i = 0;
+    if (!dividend) dividend = allocated[i++];
+    if (!divisor) divisor = allocated[i++];
+    if (!result) result = allocated[i++];
+    if (!remainder) remainder = allocated[i++];
+  }
+
+  return { ...properties, dividend, divisor, result, remainder };
+}
+
+function compactDivideProperties(properties = {}) {
+  const dividend = parseMathSourceOperand(properties.dividend);
+  const divisor = parseMathSourceOperand(properties.divisor);
+  const quotientRegister = parseRegisterAddress(properties.result);
+  const remainderRegister = parseRegisterAddress(properties.remainder);
+
+  if (!dividend || !divisor || !quotientRegister || !remainderRegister) {
+    throw new Error(
+      "DIV requires valid dividend/divisor operands plus quotient and remainder registers."
+    );
+  }
+
+  return {
+    dividend: {
+      type: dividend.kind === "literal" ? 1 : 0,
+      value: dividend.value
+    },
+    divisor: {
+      type: divisor.kind === "literal" ? 1 : 0,
+      value: divisor.value
+    },
+    quotient: quotientRegister.number,
+    remainder: remainderRegister.number
+  };
+}
+
+async function promptForDivideConfiguration(
+  current = null,
+  title = "Configure DIV",
+  excludeTile = null
+) {
+  let values;
+
+  try {
+    values = normalizeDivideProperties(current || {}, excludeTile);
+  } catch (error) {
+    alert(error.message || String(error));
+    return null;
+  }
+
+  const updated = await showElementPropertyEditor({
+    title,
+    fields: elementEditorFields("divide"),
+    values
+  });
+  if (!updated) return null;
+
+  const dividend = parseMathSourceOperand(updated.dividend);
+  const divisor = parseMathSourceOperand(updated.divisor);
+  const quotient = parseRegisterAddress(updated.result);
+  const remainder = parseRegisterAddress(updated.remainder);
+
+  if (!dividend) {
+    alert("Dividend must be R:xxxxx or a signed 32-bit integer.");
+    return promptForDivideConfiguration({ ...values, ...updated }, title, excludeTile);
+  }
+
+  if (!divisor) {
+    alert("Divisor must be R:xxxxx or a signed 32-bit integer.");
+    return promptForDivideConfiguration({ ...values, ...updated }, title, excludeTile);
+  }
+
+  if (!quotient) {
+    alert("Quotient must be a register in R:00000-R:09999 format.");
+    return promptForDivideConfiguration({ ...values, ...updated }, title, excludeTile);
+  }
+
+  if (!remainder) {
+    alert("Remainder must be a register in R:00000-R:09999 format.");
+    return promptForDivideConfiguration({ ...values, ...updated }, title, excludeTile);
+  }
+
+  if (quotient.number === remainder.number) {
+    alert("Quotient and remainder must use different destination registers.");
+    return promptForDivideConfiguration({ ...values, ...updated }, title, excludeTile);
+  }
+
+  return {
+    ...values,
+    ...updated,
+    dividend: dividend.text,
+    divisor: divisor.text,
+    result: quotient.text,
+    remainder: remainder.text
+  };
+}
+
 function normalizeMultiplyProperties(properties = {}, excludeTile = null) {
   let multiplicand = parseMathSourceOperand(properties.multiplicand)?.text || null;
   let multiplier = parseMathSourceOperand(properties.multiplier)?.text || null;
@@ -2308,7 +2481,12 @@ function elementEditorFields(type) {
       { key:"multiplier", label:"Multiplier (R:xxxxx or integer)", type:"text", placeholder:"R:00001 or -2" },
       { key:"result", label:"Result Register", type:"text", placeholder:"R:00002" }
     ];
-    case "divide": return [reg("dividend","Dividend"), reg("divisor","Divisor"), reg("result","Quotient / Result"), reg("remainder","Remainder")];
+    case "divide": return [
+      { key:"dividend", label:"Dividend (R:xxxxx or integer)", type:"text", placeholder:"R:00000 or 100" },
+      { key:"divisor", label:"Divisor (R:xxxxx or integer)", type:"text", placeholder:"R:00001 or 4" },
+      { key:"result", label:"Quotient Register", type:"text", placeholder:"R:00002" },
+      { key:"remainder", label:"Remainder Register", type:"text", placeholder:"R:00003" }
+    ];
     case "block_move": return [reg("source","Source"), reg("destination","Destination"), {key:"length",label:"Table Length",type:"number",min:1,step:1,integer:true}];
     case "analog_in": return [reg("adcInput","ADC Input"), reg("result","Result Register"), reg("sampleRateTimer","Sample-rate Timer")];
     case "analog_out": return [reg("pwmOutput","PWM Output"), reg("source","Source Register"), reg("sampleRateTimer","Sample-rate Timer")];
@@ -2813,7 +2991,8 @@ function ensureMultiplyRuntimeOverlay(tile) {
   if (!tile || tile.dataset.programType !== "multiply") return null;
   const id = String(tile.dataset.blockId || "");
   let overlay = ladderCanvas.querySelector(
-    `.multiply-runtime-overlay[data-block-id="${CSS.escape(id)}"]`
+    `.multiply-runtime-overlay[data-block-id="${CSS.escape(id)}"],
+       .divide-runtime-overlay[data-block-id="${CSS.escape(id)}"]`
   );
   if (!overlay) {
     overlay = document.createElement("div");
@@ -2880,6 +3059,124 @@ function refreshAllMultiplyOverlays(snapshot = latestProcessState) {
       valueNode.title =
         `Current contents of ${result || "result register"}; MULT last executed on PLC scan ${telemetry.evaluatedScan}`;
     }
+  });
+}
+
+
+function ensureDivideRuntimeOverlay(tile) {
+  if (!tile || tile.dataset.programType !== "divide") return null;
+
+  const id = String(tile.dataset.blockId || "");
+  let overlay = ladderCanvas.querySelector(
+    `.divide-runtime-overlay[data-block-id="${CSS.escape(id)}"]`
+  );
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "divide-runtime-overlay";
+    overlay.dataset.blockId = id;
+    ladderCanvas.appendChild(overlay);
+  }
+
+  overlay.style.left = tile.style.left;
+  overlay.style.top = tile.style.top;
+  return overlay;
+}
+
+function renderDivideRuntimeOverlay(
+  tile,
+  quotientValue = null,
+  remainderValue = null
+) {
+  if (!tile || tile.dataset.programType !== "divide") return;
+
+  let props = {};
+  try { props = JSON.parse(tile.dataset.properties || "{}"); } catch (error) {}
+
+  const overlay = ensureDivideRuntimeOverlay(tile);
+  if (!overlay) return;
+
+  const dividend = parseMathSourceOperand(props.dividend)?.text || "";
+  const divisor = parseMathSourceOperand(props.divisor)?.text || "";
+  const quotient = parseRegisterAddress(props.result)?.text || "";
+  const remainder = parseRegisterAddress(props.remainder)?.text || "";
+
+  const qValue =
+    quotientValue != null && Number.isFinite(Number(quotientValue))
+      ? String(Math.trunc(Number(quotientValue)))
+      : "—";
+
+  const rValue =
+    remainderValue != null && Number.isFinite(Number(remainderValue))
+      ? String(Math.trunc(Number(remainderValue)))
+      : "—";
+
+  overlay.innerHTML = `
+    <div class="div-dividend">${dividend}</div>
+    <div class="div-operation">Divide</div>
+    <div class="div-divisor">${divisor}</div>
+    <div class="div-quotient">${quotient}</div>
+    <div class="div-quotient-value">${qValue}</div>
+    <div class="div-remainder">${remainder}</div>
+    <div class="div-remainder-value">${rValue}</div>
+  `;
+}
+
+function processStateDivideMap(snapshot) {
+  const map = new Map();
+
+  for (const item of snapshot?.divs || []) {
+    if (!Array.isArray(item) || item.length < 6) continue;
+
+    const blockId = String(item[0]);
+    const evaluatedScan = Number(item[1]);
+
+    map.set(blockId, {
+      evaluatedScan: Number.isFinite(evaluatedScan) ? evaluatedScan : null,
+      success: !!item[2],
+      remainderStatus: !!item[3],
+      mathError: !!item[4],
+      remainderSelected: !!item[5]
+    });
+  }
+
+  return map;
+}
+
+function refreshAllDivideOverlays(snapshot = latestProcessState) {
+  const registers = processStateRegisterMap(snapshot);
+  const divs = processStateDivideMap(snapshot);
+
+  monitoringTilesForType("divide").forEach(tile => {
+    let props = {};
+    try { props = JSON.parse(tile.dataset.properties || "{}"); } catch (error) {}
+
+    const quotient = parseRegisterAddress(props.result)?.text || null;
+    const remainder = parseRegisterAddress(props.remainder)?.text || null;
+
+    const qValue =
+      quotient && registers.has(quotient) ? registers.get(quotient) : null;
+    const rValue =
+      remainder && registers.has(remainder) ? registers.get(remainder) : null;
+
+    renderDivideRuntimeOverlay(tile, qValue, rValue);
+
+    const telemetry = divs.get(String(tile.dataset.blockId || ""));
+    const qNode =
+      ensureDivideRuntimeOverlay(tile)?.querySelector(".div-quotient-value");
+
+    if (qNode && telemetry?.evaluatedScan != null) {
+      qNode.title =
+        `DIV last executed on PLC scan ${telemetry.evaluatedScan}`;
+    }
+  });
+
+  ladderCanvas.querySelectorAll(".divide-runtime-overlay").forEach(overlay => {
+    const id = String(overlay.dataset.blockId || "");
+    const tile = ladderCanvas.querySelector(
+      `.placed-tile[data-program-type="divide"][data-block-id="${CSS.escape(id)}"]`
+    );
+    if (!tile) overlay.remove();
   });
 }
 
@@ -3443,6 +3740,18 @@ async function editPlacedElement(tile) {
     scheduleLadderWorkspaceAutosave();
     return;
   }
+  if (type === "divide") {
+    const updatedDiv = await promptForDivideConfiguration(
+      properties,
+      "Edit DIV",
+      tile
+    );
+    if (!updatedDiv) return;
+    tile.dataset.properties = JSON.stringify(updatedDiv);
+    renderDivideRuntimeOverlay(tile);
+    scheduleLadderWorkspaceAutosave();
+    return;
+  }
 
   const fields = elementEditorFields(type);
   if (!fields.length) return;
@@ -3661,7 +3970,7 @@ function defaultPortsForType(type) {
         boolPort("enable", "input"),
         boolPort("remainderSelect", "input"),
         boolPort("success", "output"),
-        boolPort("middleStatus", "output"),
+        boolPort("remainderStatus", "output"),
         boolPort("mathError", "output")
       ];
 
@@ -3744,7 +4053,7 @@ function runtimeFieldsForType(type) {
       return ["input", "greaterThan", "positiveEqual", "lessThan"];
 
     case "divide":
-      return ["enable", "remainderSelect", "success", "middleStatus", "mathError"];
+      return ["enable", "remainderSelect", "success", "remainderStatus", "mathError"];
 
     case "vertical_shunt":
       return ["upper", "lower", "output"];
@@ -4041,6 +4350,7 @@ function clearPlacedBlocks() {
   ladderCanvas.querySelectorAll(".add-output-state-overlay").forEach(label => label.remove());
   ladderCanvas.querySelectorAll(".subtract-runtime-overlay").forEach(label => label.remove());
   ladderCanvas.querySelectorAll(".multiply-runtime-overlay").forEach(label => label.remove());
+  ladderCanvas.querySelectorAll(".divide-runtime-overlay").forEach(label => label.remove());
 }
 
 function createPlacedTileFromProgramBlock(block) {
@@ -4113,6 +4423,9 @@ function createPlacedTileFromProgramBlock(block) {
   }
   if (block.type === "multiply") {
     renderMultiplyRuntimeOverlay(image);
+  }
+  if (block.type === "divide") {
+    renderDivideRuntimeOverlay(image);
   }
   requestBindingGridLabelSync();
 }
@@ -4602,24 +4915,50 @@ function buildOptimizedProgram(program = buildProgramObject(), projectMeta = nul
         }
 
         case "divide": {
-          // DIV has two Boolean inputs: upper enable and middle remainder-select.
-          // It has three output rows: success, middle status, and math error.
+          /*
+            DIV follows SUB's three-output/status model.
+
+            Boolean inputs:
+              row 0 = Enable
+              row 1 = Remainder Select
+
+            Status outputs are mutually exclusive after an enabled calculation:
+              row 0 = Success
+              row 1 = Remainder Status
+              row 2 = Math Error
+
+            Remainder Select LOW:
+              any valid division -> Success
+
+            Remainder Select HIGH:
+              exact division      -> Success
+              non-zero remainder  -> Remainder Status
+
+            divide-by-zero or signed INT32_MIN / -1 overflow -> Math Error.
+          */
           const top = block.position.row;
           const enableExpr = boundary[top];
-          const remainderExpr = boundary[top + 1] || { kind: "false" };
+          const remainderSelectExpr =
+            boundary[top + 1] || { kind: "false" };
+
           if (!enableExpr) break;
+
+          const compact = compactDivideProperties(block.properties || {});
+
           rawNext[row] = {
             kind: "function",
             opcode: optimizerOpcodes.divide,
             id: block.id,
             params: [
-              block.properties?.dividend ?? null,
-              block.properties?.divisor ?? null,
-              block.properties?.result ?? null,
-              block.properties?.remainder ?? null,
+              compact.dividend.type,
+              compact.dividend.value,
+              compact.divisor.type,
+              compact.divisor.value,
+              compact.quotient,
+              compact.remainder,
               outputSelector
             ],
-            inputs: [enableExpr, remainderExpr]
+            inputs: [enableExpr, remainderSelectExpr]
           };
           break;
         }
@@ -5470,9 +5809,11 @@ function applyAbsoluteMonitoringView(snapshot) {
         active = false;
         renderAddOutputState(tile, false, false);
         break;
+      case "divide":
+        active = false;
+        break;
       case "subtract":
       case "multiply":
-      case "divide":
       case "block_move":
       case "analog_in":
       case "analog_out":
@@ -5632,7 +5973,29 @@ function applySeriesMonitoringView(snapshot) {
           continue;
         }
 
-        case "divide":
+        case "divide": {
+          const relativeRow = row - block.position.row;
+          const telemetry =
+            processStateDivideMap(snapshot).get(String(block.id)) || null;
+
+          setMonitoringGlow(block.id, false, false);
+
+          if (!telemetry) {
+            powerOut = false;
+          } else if (relativeRow === 0) {
+            powerOut = !!telemetry.success;
+          } else if (relativeRow === 1) {
+            powerOut = !!telemetry.remainderStatus;
+          } else if (relativeRow === 2) {
+            powerOut = !!telemetry.mathError;
+          } else {
+            powerOut = false;
+          }
+
+          rawNext[row] = powerOut;
+          continue;
+        }
+
         case "block_move":
         case "analog_in":
         case "analog_out":
@@ -5690,6 +6053,7 @@ function applyPendingMonitoringFrame() {
   refreshAllAddOverlays(snapshot);
   refreshAllSubtractOverlays(snapshot);
   refreshAllMultiplyOverlays(snapshot);
+  refreshAllDivideOverlays(snapshot);
   applyMonitoringView(snapshot);
   recordGuiTiming("update", performance.now() - updateStartMs);
 
@@ -7298,6 +7662,12 @@ function commitGroupCopy() {
     if (placed.dataset.programType === "multiply") {
       renderMultiplyRuntimeOverlay(placed);
     }
+    if (placed.dataset.programType === "divide") {
+      renderDivideRuntimeOverlay(placed);
+    }
+    if (placed.dataset.programType === "divide") {
+      renderDivideRuntimeOverlay(placed);
+    }
     if (placed.dataset.programType === "subtract") {
       renderSubtractRuntimeOverlay(placed);
     }
@@ -8030,6 +8400,13 @@ workspace.addEventListener("click", async event => {
     );
     if (!placementProperties) return;
   }
+  if (placementDefinition.programType === "divide") {
+    placementProperties = await promptForDivideConfiguration(
+      placementProperties,
+      "Configure DIV"
+    );
+    if (!placementProperties) return;
+  }
 
   const image = document.createElement("img");
   image.src = placementImage;
@@ -8101,6 +8478,9 @@ workspace.addEventListener("click", async event => {
   }
   if (placementDefinition.programType === "multiply") {
     renderMultiplyRuntimeOverlay(image);
+  }
+  if (placementDefinition.programType === "divide") {
+    renderDivideRuntimeOverlay(image);
   }
   bringVerticalShuntsToFront();
   refreshBooleanBindingMetadata();
