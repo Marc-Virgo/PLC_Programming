@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.94</title>
+  <title>Ladder Logic — v1.95</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile-icon{display:block;max-width:100%;height:40px;width:auto;object-fit:contain;pointer-events:none}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -565,6 +565,67 @@
 .add-runtime-overlay .add-operation{top:112px;}
 .add-runtime-overlay .add-addend2{top:148px;}
 .add-runtime-overlay .add-result{top:184px;}
+.add-runtime-overlay .add-result-value{
+  position:absolute;
+  top:207px;
+  left:50%;
+  transform:translateX(-50%);
+  min-width:88px;
+  max-width:126px;
+  height:27px;
+  padding:2px 7px;
+  border:2px solid #111827;
+  border-radius:3px;
+  background:#fff;
+  color:#111827;
+  font-family:Consolas,"Courier New",monospace;
+  font-size:16px;
+  line-height:19px;
+  font-weight:700;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* v1.95 ADD monitoring:
+   the block body never glows. Only the normal and overflow output conductors
+   are highlighted when the corresponding output is TRUE. */
+.add-output-state-overlay{
+  position:absolute;
+  width:140px;
+  height:280px;
+  pointer-events:none;
+  z-index:33;
+}
+.add-output-state-overlay .add-output-rung{
+  position:absolute;
+  inset:0;
+  width:140px;
+  height:280px;
+  object-fit:contain;
+  opacity:0;
+  filter:
+    brightness(0)
+    saturate(100%)
+    invert(58%)
+    sepia(86%)
+    saturate(1169%)
+    hue-rotate(84deg)
+    brightness(96%)
+    contrast(88%)
+    drop-shadow(0 0 2px rgba(34,197,94,.95))
+    drop-shadow(0 0 4px rgba(34,197,94,.65));
+}
+.add-output-state-overlay .add-output-rung.output{
+  clip-path:inset(66px 0 205px 121px);
+}
+.add-output-state-overlay .add-output-rung.overflow{
+  clip-path:inset(206px 0 65px 121px);
+}
+.add-output-state-overlay .add-output-rung.on{
+  opacity:1;
+}
 
 
 #executionEngineDebugLabel select{margin-left:4px;padding:4px 6px;border:1px solid #9ca3af;border-radius:5px;background:#fff;color:#111827;font-size:.86rem;font-weight:700}
@@ -582,7 +643,7 @@
 <body>
 <div class="app">
 <header class="topbar">
-  <div class="title">Ladder Logic — v1.94</div>
+  <div class="title">Ladder Logic — v1.95</div>
 
   <div class="ribbon-main-controls">
     <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button>
@@ -2299,7 +2360,7 @@ function ensureAddRuntimeOverlay(tile) {
   return overlay;
 }
 
-function renderAddRuntimeOverlay(tile) {
+function renderAddRuntimeOverlay(tile, resultValue = null) {
   if (!tile || tile.dataset.programType !== "add") return;
 
   let props = {};
@@ -2310,20 +2371,206 @@ function renderAddRuntimeOverlay(tile) {
   const addend1 = parseMathSourceOperand(props.addend1)?.text || "";
   const addend2 = parseMathSourceOperand(props.addend2)?.text || "";
   const result = parseRegisterAddress(props.result)?.text || "";
+  const displayedValue =
+    resultValue != null && Number.isFinite(Number(resultValue))
+      ? String(Math.trunc(Number(resultValue)))
+      : "—";
 
   overlay.innerHTML = `
     <div class="add-addend1">${addend1}</div>
     <div class="add-operation">Add</div>
     <div class="add-addend2">${addend2}</div>
     <div class="add-result">${result}</div>
+    <div class="add-result-value" title="Current contents of ${result || "result register"}">${displayedValue}</div>
   `;
+}
+
+function ensureAddOutputStateOverlay(tile) {
+  if (!tile || tile.dataset.programType !== "add") return null;
+
+  const id = String(tile.dataset.blockId || "");
+  let overlay = ladderCanvas.querySelector(
+    `.add-output-state-overlay[data-block-id="${CSS.escape(id)}"]`
+  );
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "add-output-state-overlay";
+    overlay.dataset.blockId = id;
+    ladderCanvas.appendChild(overlay);
+  }
+
+  overlay.style.left = tile.style.left;
+  overlay.style.top = tile.style.top;
+  return overlay;
+}
+
+function renderAddOutputState(tile, outputState = false, overflowState = false) {
+  if (!tile || tile.dataset.programType !== "add") return;
+
+  const overlay = ensureAddOutputStateOverlay(tile);
+  if (!overlay) return;
+
+  let outputRung = overlay.querySelector(".add-output-rung.output");
+  let overflowRung = overlay.querySelector(".add-output-rung.overflow");
+
+  if (!outputRung || !overflowRung) {
+    overlay.textContent = "";
+
+    outputRung = document.createElement("img");
+    outputRung.className = "add-output-rung output";
+    outputRung.src = "./images/add.png";
+    outputRung.alt = "";
+    outputRung.draggable = false;
+
+    overflowRung = document.createElement("img");
+    overflowRung.className = "add-output-rung overflow";
+    overflowRung.src = "./images/add.png";
+    overflowRung.alt = "";
+    overflowRung.draggable = false;
+
+    overlay.append(outputRung, overflowRung);
+  }
+
+  outputRung.classList.toggle("on", !!outputState);
+  overflowRung.classList.toggle("on", !!overflowState);
+}
+
+function processStateRegisterMap(snapshot) {
+  const map = new Map();
+
+  const store = (key, value) => {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return;
+
+    if (typeof key === "number" || /^\d+$/.test(String(key))) {
+      const reg = formatRegisterAddress(Number(key));
+      if (reg) map.set(reg, Math.trunc(numericValue));
+      return;
+    }
+
+    const parsed = parseRegisterAddress(String(key));
+    if (parsed) map.set(parsed.text, Math.trunc(numericValue));
+  };
+
+  const ingest = source => {
+    if (!source) return;
+
+    if (Array.isArray(source)) {
+      source.forEach((item, index) => {
+        if (Array.isArray(item) && item.length >= 2) {
+          store(item[0], item[1]);
+        } else if (item && typeof item === "object") {
+          const key =
+            item.register ?? item.address ?? item.name ?? item.id ?? item.index;
+          const value =
+            item.value ?? item.current ?? item.data;
+          if (key != null && value != null) store(key, value);
+        } else if (Number.isFinite(Number(item))) {
+          store(index, item);
+        }
+      });
+      return;
+    }
+
+    if (typeof source === "object") {
+      Object.entries(source).forEach(([key, value]) => store(key, value));
+    }
+  };
+
+  // Support the common verbose/compact telemetry field names. This is
+  // deliberately tolerant so firmware may return either R:xxxxx keys or
+  // compact numeric register indices.
+  ingest(snapshot?.registers);
+  ingest(snapshot?.registerValues);
+  ingest(snapshot?.numeric);
+  ingest(snapshot?.regs);
+
+  return map;
+}
+
+function addOperandRuntimeValue(value, registerMap) {
+  const parsed = parseMathSourceOperand(value);
+  if (!parsed) return null;
+  if (parsed.kind === "literal") return parsed.value;
+  return registerMap.has(parsed.text) ? registerMap.get(parsed.text) : null;
+}
+
+function getAddMonitoringState(tile, snapshot, enabled = false) {
+  let props = {};
+  try { props = JSON.parse(tile.dataset.properties || "{}"); } catch (error) {}
+
+  const registerMap = processStateRegisterMap(snapshot);
+  const resultRegister = parseRegisterAddress(props.result)?.text || null;
+  const resultValue =
+    resultRegister && registerMap.has(resultRegister)
+      ? registerMap.get(resultRegister)
+      : null;
+
+  const a = addOperandRuntimeValue(props.addend1, registerMap);
+  const b = addOperandRuntimeValue(props.addend2, registerMap);
+
+  let overflow = false;
+  if (enabled && a != null && b != null) {
+    const raw = Number(a) + Number(b);
+    overflow = raw > INT32_MAX_VALUE || raw < INT32_MIN_VALUE;
+  }
+
+  return {
+    resultValue,
+    output: !!enabled,
+    overflow: !!overflow
+  };
+}
+
+function refreshAllAddOverlays(snapshot = latestProcessState) {
+  const registerMap = processStateRegisterMap(snapshot);
+
+  monitoringTilesForType("add").forEach(tile => {
+    let props = {};
+    try { props = JSON.parse(tile.dataset.properties || "{}"); } catch (error) {}
+    const resultRegister = parseRegisterAddress(props.result)?.text || null;
+    const resultValue =
+      resultRegister && registerMap.has(resultRegister)
+        ? registerMap.get(resultRegister)
+        : null;
+
+    renderAddRuntimeOverlay(tile, resultValue);
+
+    // Output glow is set by the series power-flow solver because that is where
+    // the Boolean enable path is known. Clear it here when not online.
+    if (plcState !== "RUNNING" || editorEnabled) {
+      renderAddOutputState(tile, false, false);
+    }
+
+    // The ADD image itself must never inherit the generic block glow.
+    tile.classList.remove(
+      "monitor-powered",
+      "monitor-power-in",
+      "live-powered",
+      "live-power-in"
+    );
+  });
+
+  ladderCanvas.querySelectorAll(".add-output-state-overlay").forEach(overlay => {
+    const id = String(overlay.dataset.blockId || "");
+    const tile = ladderCanvas.querySelector(
+      `.placed-tile[data-program-type="add"][data-block-id="${CSS.escape(id)}"]`
+    );
+    if (!tile) overlay.remove();
+  });
+
+  removeOrphanAddOverlays();
 }
 
 function removeAddRuntimeOverlayForTile(tile) {
   if (!tile || tile.dataset.programType !== "add") return;
   const id = String(tile.dataset.blockId || "");
   ladderCanvas
-    .querySelectorAll(`.add-runtime-overlay[data-block-id="${CSS.escape(id)}"]`)
+    .querySelectorAll(
+      `.add-runtime-overlay[data-block-id="${CSS.escape(id)}"],
+       .add-output-state-overlay[data-block-id="${CSS.escape(id)}"]`
+    )
     .forEach(overlay => overlay.remove());
 }
 
@@ -3258,6 +3505,7 @@ function clearPlacedBlocks() {
   ladderCanvas.querySelectorAll(".counter-runtime-overlay").forEach(label => label.remove());
   ladderCanvas.querySelectorAll(".counter-output-state-overlay").forEach(label => label.remove());
   ladderCanvas.querySelectorAll(".add-runtime-overlay").forEach(label => label.remove());
+  ladderCanvas.querySelectorAll(".add-output-state-overlay").forEach(label => label.remove());
 }
 
 function createPlacedTileFromProgramBlock(block) {
@@ -4495,7 +4743,7 @@ function buildMonitoringTopologyCache() {
     // Function blocks can expose Boolean input/output paths on lower rows.
     if (["timer","counter","add","subtract","multiply","divide","block_move","analog_in","analog_out","pid"].includes(block.type)) {
       const secondaryRows = [];
-      if (block.type === "timer" || block.type === "counter") secondaryRows.push(1);
+      if (block.type === "timer" || block.type === "counter" || block.type === "add") secondaryRows.push(1);
       if (block.type === "subtract" || block.type === "divide") secondaryRows.push(1, 2);
       for (const rel of secondaryRows) {
         blockByCell.set(cellKey(block.position.row + rel, block.position.col), block);
@@ -4576,7 +4824,7 @@ function clearLivePowerVisualization() {
   });
 
   ladderCanvas
-    .querySelectorAll(".counter-output-rung, .timer-output-rung")
+    .querySelectorAll(".counter-output-rung, .timer-output-rung, .add-output-rung")
     .forEach(rung => rung.classList.remove("on"));
 
   monitoringVisualState.clear();
@@ -4663,6 +4911,10 @@ function applyAbsoluteMonitoringView(snapshot) {
         break;
       }
       case "add":
+        // ADD block body never glows; output conductors are handled separately.
+        active = false;
+        renderAddOutputState(tile, false, false);
+        break;
       case "subtract":
       case "multiply":
       case "divide":
@@ -4738,7 +4990,27 @@ function applySeriesMonitoringView(snapshot) {
           setMonitoringGlow(block.id, false, false);
           powerOut = false;
           break;
-        case "add":
+        case "add": {
+          const relativeRow = row - block.position.row;
+          const addTile = cache.tileById.get(String(block.id));
+          const enablePower = !!boundary[block.position.row];
+          const state = getAddMonitoringState(addTile, snapshot, enablePower);
+
+          // ADD itself never glows.
+          setMonitoringGlow(block.id, false, false);
+
+          if (relativeRow === 0) {
+            powerOut = state.output;
+          } else if (relativeRow === 1) {
+            powerOut = state.overflow;
+          } else {
+            powerOut = false;
+          }
+
+          renderAddOutputState(addTile, state.output, state.overflow);
+          rawNext[row] = powerOut;
+          continue;
+        }
         case "subtract":
         case "multiply":
         case "divide":
@@ -4796,6 +5068,7 @@ function applyPendingMonitoringFrame() {
   refreshAllTimerOutputStates(snapshot.timers || []);
   refreshAllCounterOverlays(snapshot.counters || []);
   refreshAllCounterOutputStates(snapshot.counters || []);
+  refreshAllAddOverlays(snapshot);
   applyMonitoringView(snapshot);
   recordGuiTiming("update", performance.now() - updateStartMs);
 
