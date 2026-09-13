@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v1.96</title>
+  <title>Ladder Logic — v1.97</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile-icon{display:block;max-width:100%;height:40px;width:auto;object-fit:contain;pointer-events:none}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -588,6 +588,56 @@
   text-overflow:ellipsis;
 }
 
+
+.subtract-runtime-overlay{
+  position:absolute;
+  width:140px;
+  height:420px;
+  pointer-events:none;
+  z-index:32;
+  font-family:Arial,Helvetica,sans-serif;
+  color:#111827;
+}
+.subtract-runtime-overlay > div{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  width:126px;
+  text-align:center;
+  font-size:13px;
+  font-weight:700;
+  line-height:16px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.subtract-runtime-overlay .sub-minuend{top:76px;}
+.subtract-runtime-overlay .sub-operation{top:112px;}
+.subtract-runtime-overlay .sub-subtrahend{top:148px;}
+.subtract-runtime-overlay .sub-result{top:184px;}
+.subtract-runtime-overlay .sub-result-value{
+  position:absolute;
+  top:207px;
+  left:50%;
+  transform:translateX(-50%);
+  min-width:88px;
+  max-width:126px;
+  height:27px;
+  padding:2px 7px;
+  border:2px solid #111827;
+  border-radius:3px;
+  background:#fff;
+  color:#111827;
+  font-family:Consolas,"Courier New",monospace;
+  font-size:16px;
+  line-height:19px;
+  font-weight:700;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
 /* v1.95 ADD monitoring:
    the block body never glows. Only the normal and overflow output conductors
    are highlighted when the corresponding output is TRUE. */
@@ -643,7 +693,7 @@
 <body>
 <div class="app">
 <header class="topbar">
-  <div class="title">Ladder Logic — v1.96</div>
+  <div class="title">Ladder Logic — v1.97</div>
 
   <div class="ribbon-main-controls">
     <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button>
@@ -1976,6 +2026,100 @@ async function promptForAddConfiguration(current = null, title = "Configure ADD"
   };
 }
 
+function normalizeSubtractProperties(properties = {}, excludeTile = null) {
+  let minuend = parseMathSourceOperand(properties.minuend)?.text || null;
+  let subtrahend = parseMathSourceOperand(properties.subtrahend)?.text || null;
+  let result = parseRegisterAddress(properties.result)?.text || null;
+
+  if (!minuend || !subtrahend || !result) {
+    const needed =
+      (!minuend ? 1 : 0) +
+      (!subtrahend ? 1 : 0) +
+      (!result ? 1 : 0);
+    const allocated =
+      nextAvailableRegisterNumbers(needed, excludeTile).map(formatRegisterAddress);
+    let index = 0;
+    if (!minuend) minuend = allocated[index++];
+    if (!subtrahend) subtrahend = allocated[index++];
+    if (!result) result = allocated[index++];
+  }
+
+  return { ...properties, minuend, subtrahend, result };
+}
+
+function compactSubtractProperties(properties = {}) {
+  const srcA = parseMathSourceOperand(properties.minuend);
+  const srcB = parseMathSourceOperand(properties.subtrahend);
+  const destination = parseRegisterAddress(properties.result);
+
+  if (!srcA || !srcB || !destination) {
+    throw new Error(
+      "SUB requires a valid minuend, subtrahend, and R:xxxxx destination register."
+    );
+  }
+
+  return {
+    srcA: { type: srcA.kind === "literal" ? 1 : 0, value: srcA.value },
+    srcB: { type: srcB.kind === "literal" ? 1 : 0, value: srcB.value },
+    destination: destination.number
+  };
+}
+
+async function promptForSubtractConfiguration(
+  current = null,
+  title = "Configure SUB",
+  excludeTile = null
+) {
+  let values;
+
+  try {
+    values = normalizeSubtractProperties(current || {}, excludeTile);
+  } catch (error) {
+    alert(error.message || String(error));
+    return null;
+  }
+
+  const updated = await showElementPropertyEditor({
+    title,
+    fields: elementEditorFields("subtract"),
+    values
+  });
+  if (!updated) return null;
+
+  const minuend = parseMathSourceOperand(updated.minuend);
+  const subtrahend = parseMathSourceOperand(updated.subtrahend);
+  const destination = parseRegisterAddress(updated.result);
+
+  if (!minuend) {
+    alert("Minuend must be R:xxxxx or a signed 32-bit integer.");
+    return promptForSubtractConfiguration(
+      { ...values, ...updated }, title, excludeTile
+    );
+  }
+
+  if (!subtrahend) {
+    alert("Subtrahend must be R:xxxxx or a signed 32-bit integer.");
+    return promptForSubtractConfiguration(
+      { ...values, ...updated }, title, excludeTile
+    );
+  }
+
+  if (!destination) {
+    alert("Result must be a register in R:00000-R:09999 format.");
+    return promptForSubtractConfiguration(
+      { ...values, ...updated }, title, excludeTile
+    );
+  }
+
+  return {
+    ...values,
+    ...updated,
+    minuend: minuend.text,
+    subtrahend: subtrahend.text,
+    result: destination.text
+  };
+}
+
 function elementEditorFields(type) {
   const reg = (key, label) => ({ key, label, type: "text", placeholder: "Register / data reference" });
   switch (type) {
@@ -2011,7 +2155,11 @@ function elementEditorFields(type) {
       { key:"addend2", label:"Addend 2 (R:xxxxx or integer)", type:"text", placeholder:"R:00001 or -25" },
       { key:"result", label:"Result Register", type:"text", placeholder:"R:00002" }
     ];
-    case "subtract": return [reg("minuend","Minuend"), reg("subtrahend","Subtrahend"), reg("result","Result")];
+    case "subtract": return [
+      { key:"minuend", label:"Minuend (R:xxxxx or integer)", type:"text", placeholder:"R:00000 or 100" },
+      { key:"subtrahend", label:"Subtrahend (R:xxxxx or integer)", type:"text", placeholder:"R:00001 or -25" },
+      { key:"result", label:"Result Register", type:"text", placeholder:"R:00002" }
+    ];
     case "multiply": return [reg("multiplicand","Multiplicand"), reg("multiplier","Multiplier"), reg("result","Result")];
     case "divide": return [reg("dividend","Dividend"), reg("divisor","Divisor"), reg("result","Quotient / Result"), reg("remainder","Remainder")];
     case "block_move": return [reg("source","Source"), reg("destination","Destination"), {key:"length",label:"Table Length",type:"number",min:1,step:1,integer:true}];
@@ -2513,6 +2661,110 @@ function processStateAddMap(snapshot) {
   return map;
 }
 
+function ensureSubtractRuntimeOverlay(tile) {
+  if (!tile || tile.dataset.programType !== "subtract") return null;
+
+  const id = String(tile.dataset.blockId || "");
+  let overlay = ladderCanvas.querySelector(
+    `.subtract-runtime-overlay[data-block-id="${CSS.escape(id)}"]`
+  );
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "subtract-runtime-overlay";
+    overlay.dataset.blockId = id;
+    ladderCanvas.appendChild(overlay);
+  }
+
+  overlay.style.left = tile.style.left;
+  overlay.style.top = tile.style.top;
+  return overlay;
+}
+
+function renderSubtractRuntimeOverlay(tile, resultValue = null) {
+  if (!tile || tile.dataset.programType !== "subtract") return;
+
+  let props = {};
+  try { props = JSON.parse(tile.dataset.properties || "{}"); } catch (error) {}
+
+  const overlay = ensureSubtractRuntimeOverlay(tile);
+  if (!overlay) return;
+
+  const minuend = parseMathSourceOperand(props.minuend)?.text || "";
+  const subtrahend = parseMathSourceOperand(props.subtrahend)?.text || "";
+  const result = parseRegisterAddress(props.result)?.text || "";
+
+  const displayedValue =
+    resultValue != null && Number.isFinite(Number(resultValue))
+      ? String(Math.trunc(Number(resultValue)))
+      : "—";
+
+  overlay.innerHTML = `
+    <div class="sub-minuend">${minuend}</div>
+    <div class="sub-operation">Subtract</div>
+    <div class="sub-subtrahend">${subtrahend}</div>
+    <div class="sub-result">${result}</div>
+    <div class="sub-result-value"
+         title="Current contents of ${result || "result register"}">${displayedValue}</div>
+  `;
+}
+
+function processStateSubMap(snapshot) {
+  const map = new Map();
+
+  for (const item of snapshot?.subs || []) {
+    if (!Array.isArray(item) || item.length < 6) continue;
+
+    const blockId = String(item[0]);
+    const evaluatedScan = Number(item[1]);
+
+    map.set(blockId, {
+      evaluatedScan: Number.isFinite(evaluatedScan) ? evaluatedScan : null,
+      greaterThan: !!item[2],
+      positiveEqual: !!item[3],
+      lessThan: !!item[4],
+      overflow: !!item[5]
+    });
+  }
+
+  return map;
+}
+
+function refreshAllSubtractOverlays(snapshot = latestProcessState) {
+  const registerMap = processStateRegisterMap(snapshot);
+  const subMap = processStateSubMap(snapshot);
+
+  monitoringTilesForType("subtract").forEach(tile => {
+    let props = {};
+    try { props = JSON.parse(tile.dataset.properties || "{}"); } catch (error) {}
+
+    const resultRegister = parseRegisterAddress(props.result)?.text || null;
+    const resultValue =
+      resultRegister && registerMap.has(resultRegister)
+        ? registerMap.get(resultRegister)
+        : null;
+
+    renderSubtractRuntimeOverlay(tile, resultValue);
+
+    const telemetry = subMap.get(String(tile.dataset.blockId || ""));
+    const valueNode =
+      ensureSubtractRuntimeOverlay(tile)?.querySelector(".sub-result-value");
+
+    if (valueNode && telemetry?.evaluatedScan != null) {
+      valueNode.title =
+        `Current contents of ${resultRegister || "result register"}; SUB last executed on PLC scan ${telemetry.evaluatedScan}`;
+    }
+  });
+
+  ladderCanvas.querySelectorAll(".subtract-runtime-overlay").forEach(overlay => {
+    const id = String(overlay.dataset.blockId || "");
+    const tile = ladderCanvas.querySelector(
+      `.placed-tile[data-program-type="subtract"][data-block-id="${CSS.escape(id)}"]`
+    );
+    if (!tile) overlay.remove();
+  });
+}
+
 function getAddMonitoringState(tile, snapshot, enabled = false) {
   let props = {};
   try { props = JSON.parse(tile.dataset.properties || "{}"); } catch (error) {}
@@ -2601,7 +2853,8 @@ function removeAddRuntimeOverlayForTile(tile) {
   ladderCanvas
     .querySelectorAll(
       `.add-runtime-overlay[data-block-id="${CSS.escape(id)}"],
-       .add-output-state-overlay[data-block-id="${CSS.escape(id)}"]`
+       .add-output-state-overlay[data-block-id="${CSS.escape(id)}"],
+       .subtract-runtime-overlay[data-block-id="${CSS.escape(id)}"]`
     )
     .forEach(overlay => overlay.remove());
 }
@@ -2939,6 +3192,19 @@ async function editPlacedElement(tile) {
     if (!updatedAdd) return;
     tile.dataset.properties = JSON.stringify(updatedAdd);
     renderAddRuntimeOverlay(tile);
+    scheduleLadderWorkspaceAutosave();
+    return;
+  }
+
+  if (type === "subtract") {
+    const updatedSub = await promptForSubtractConfiguration(
+      properties,
+      "Edit SUB",
+      tile
+    );
+    if (!updatedSub) return;
+    tile.dataset.properties = JSON.stringify(updatedSub);
+    renderSubtractRuntimeOverlay(tile);
     scheduleLadderWorkspaceAutosave();
     return;
   }
@@ -3538,6 +3804,7 @@ function clearPlacedBlocks() {
   ladderCanvas.querySelectorAll(".counter-output-state-overlay").forEach(label => label.remove());
   ladderCanvas.querySelectorAll(".add-runtime-overlay").forEach(label => label.remove());
   ladderCanvas.querySelectorAll(".add-output-state-overlay").forEach(label => label.remove());
+  ladderCanvas.querySelectorAll(".subtract-runtime-overlay").forEach(label => label.remove());
 }
 
 function createPlacedTileFromProgramBlock(block) {
@@ -3604,6 +3871,9 @@ function createPlacedTileFromProgramBlock(block) {
   }
   if (block.type === "add") {
     renderAddRuntimeOverlay(image);
+  }
+  if (block.type === "subtract") {
+    renderSubtractRuntimeOverlay(image);
   }
   requestBindingGridLabelSync();
 }
@@ -4060,18 +4330,24 @@ function buildOptimizedProgram(program = buildProgramObject(), projectMeta = nul
         }
 
         case "subtract": {
-          // SUB has one upper Boolean input and three Boolean outputs:
-          // 0 => Greater Than (>), 1 => Positive/Equal (+), 2 => Less Than (<).
+          // SUB mirrors ADD's compact register/literal operand format.
+          // 0 => Greater Than      (result > 0)
+          // 1 => Positive / Equal (result >= 0)
+          // 2 => Less Than         (result < 0)
           const enableExpr = boundary[block.position.row];
           if (!enableExpr) break;
+
+          const compact = compactSubtractProperties(block.properties || {});
           rawNext[row] = {
             kind: "function",
             opcode: optimizerOpcodes.subtract,
             id: block.id,
             params: [
-              block.properties?.minuend ?? null,
-              block.properties?.subtrahend ?? null,
-              block.properties?.result ?? null,
+              compact.srcA.type,
+              compact.srcA.value,
+              compact.srcB.type,
+              compact.srcB.value,
+              compact.destination,
               outputSelector
             ],
             inputs: [enableExpr]
@@ -5101,6 +5377,7 @@ function applyPendingMonitoringFrame() {
   refreshAllCounterOverlays(snapshot.counters || []);
   refreshAllCounterOutputStates(snapshot.counters || []);
   refreshAllAddOverlays(snapshot);
+  refreshAllSubtractOverlays(snapshot);
   applyMonitoringView(snapshot);
   recordGuiTiming("update", performance.now() - updateStartMs);
 
@@ -6703,6 +6980,12 @@ function commitGroupCopy() {
     if (placed.dataset.programType === "add") {
       renderAddRuntimeOverlay(placed);
     }
+    if (placed.dataset.programType === "subtract") {
+      renderSubtractRuntimeOverlay(placed);
+    }
+    if (placed.dataset.programType === "subtract") {
+      renderSubtractRuntimeOverlay(placed);
+    }
 
     newTiles.push(placed);
   });
@@ -7415,6 +7698,14 @@ workspace.addEventListener("click", async event => {
     if (!placementProperties) return;
   }
 
+  if (placementDefinition.programType === "subtract") {
+    placementProperties = await promptForSubtractConfiguration(
+      placementProperties,
+      "Configure SUB"
+    );
+    if (!placementProperties) return;
+  }
+
   const image = document.createElement("img");
   image.src = placementImage;
   image.alt = placementLabel;
@@ -7479,6 +7770,9 @@ workspace.addEventListener("click", async event => {
   }
   if (placementDefinition.programType === "add") {
     renderAddRuntimeOverlay(image);
+  }
+  if (placementDefinition.programType === "subtract") {
+    renderSubtractRuntimeOverlay(image);
   }
   bringVerticalShuntsToFront();
   refreshBooleanBindingMetadata();
