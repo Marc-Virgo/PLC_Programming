@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.12</title>
+<title>PLC Configuration v1.13</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
@@ -12,16 +12,34 @@ select,input[type=text],input[type=number]{box-sizing:border-box;padding:9px;bor
 button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;color:white;font-size:1rem;font-weight:700;text-decoration:none;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.danger-button{background:#b91c1c}.danger-button:hover{background:#991b1b}
 .tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid #cbd5e1;margin-bottom:20px}.tab-button{border-radius:9px 9px 0 0;background:#e5e7eb;color:#111827;padding:11px 20px}.tab-button.active{background:#111827;color:#fff}.tab-panel{display:none}.tab-panel.active{display:block}
 .table-wrap{overflow-x:auto}.io-table{width:100%;border-collapse:collapse;min-width:920px}.io-table th,.io-table td{border:1px solid #d1d5db;padding:8px;vertical-align:middle}.io-table th{background:#e5e7eb;text-align:left;white-space:nowrap}.io-table tbody tr:nth-child(even){background:#f9fafb}.io-table input[type=text]{width:100%;min-width:190px}.io-table select{margin:0;min-width:130px;max-width:none}.logical{font-family:Consolas,monospace;font-weight:700;white-space:nowrap}.resource{font-weight:700;white-space:nowrap}.pin{font-family:Consolas,monospace;white-space:nowrap}.status-note{font-size:.9rem;color:#4b5563;margin-top:10px}.placeholder{border:2px dashed #cbd5e1;border-radius:10px;padding:22px;background:#f8fafc}
+
+.lcd-device-table,.message-table{width:100%;border-collapse:collapse;min-width:860px}
+.lcd-device-table th,.lcd-device-table td,.message-table th,.message-table td{border:1px solid #d1d5db;padding:8px;vertical-align:middle}
+.lcd-device-table th,.message-table th{background:#e5e7eb;text-align:left;white-space:nowrap}
+.lcd-device-table tbody tr:nth-child(even),.message-table tbody tr:nth-child(even){background:#f9fafb}
+.lcd-device-table input[type=text],.lcd-device-table select,.message-table input[type=text]{margin:0;width:100%;max-width:none}
+.message-register{font-family:Consolas,monospace;font-weight:700;white-space:nowrap}
+.message-geometry{font-family:Consolas,monospace;font-weight:700}
+.message-table-card{border:1px solid #cbd5e1;border-radius:12px;padding:16px;margin-top:16px;background:#fff}
+.message-table-card h3{margin:0 0 8px}
+.message-line-grid{display:grid;gap:6px}
+.message-line-grid input[type=text]{font-family:Consolas,monospace}
+.message-index{font-family:Consolas,monospace;font-weight:700;text-align:right}
+.lcd-error-preview{font-family:Consolas,monospace;white-space:pre;background:#111827;color:#f9fafb;padding:12px;border-radius:8px;display:inline-block;min-width:180px}
+.message-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.small-button{padding:8px 12px;font-size:.9rem}
+.message-help{font-size:.92rem;color:#4b5563}
 @media(max-width:650px){header{padding:14px 16px}header h1{font-size:1.35rem}main{margin:14px auto}.card{padding:16px}.tab-button{flex:1 1 30%;padding:10px 8px;font-size:.92rem}}
 </style>
 </head>
 <body>
-<header><h1 id="pageHeading">PLC Configuration v1.12</h1></header>
+<header><h1 id="pageHeading">PLC Configuration v1.13</h1></header>
 <main>
 <nav class="tabs" aria-label="PLC configuration sections">
 <button class="tab-button active" type="button" data-tab="hardware">Hardware</button>
 <button class="tab-button" type="button" data-tab="digital">Digital I/O</button>
 <button class="tab-button" type="button" data-tab="analog">Analog I/O</button>
+<button class="tab-button" type="button" data-tab="lcd">LCD / Messages</button>
 </nav>
 
 <div id="hardware" class="tab-panel active">
@@ -94,12 +112,54 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </div>
 
+
+<div id="lcd" class="tab-panel">
+<section class="card">
+<h2>LCD Devices</h2>
+<p>Configure character LCDs connected through an I²C backpack. Each enabled LCD is assigned a persistent message selector register beginning at <strong>M:50001</strong>. The register stores the message index used by the future Message ladder block.</p>
+<div class="table-wrap">
+<table class="lcd-device-table">
+<thead>
+<tr><th>Enabled</th><th>Device Name</th><th>I²C Bus</th><th>Address</th><th>Display Size</th><th>Message Register</th></tr>
+</thead>
+<tbody id="lcdDeviceBody"></tbody>
+</table>
+</div>
+<div class="actions">
+<button id="addLcdButton" type="button">Add LCD Device</button>
+</div>
+<p class="message-help">The selected display geometry determines which Flash message table the device uses. A 16×2 LCD can only index the 16×2 table; a 20×4 LCD can only index the 20×4 table.</p>
+</section>
+
+<section class="card">
+<h2>Message Tables</h2>
+<p>Each message index represents one complete LCD screen. Message text is stored by display geometry so a message can never be rendered using the wrong width or number of lines. Line fields are limited to the configured LCD width.</p>
+<div id="messageTables"></div>
+</section>
+
+<section class="card">
+<h2>Out-of-Range Message</h2>
+<p>If a Message block requests an index outside the valid table range, the firmware should ignore the table and display the built-in diagnostic below, wrapped across the selected display geometry.</p>
+<div class="mcp-runtime-row">
+<label for="errorPreviewGeometry">Preview geometry</label>
+<select id="errorPreviewGeometry">
+<option value="16x2">16 × 2</option>
+<option value="20x2">20 × 2</option>
+<option value="16x4">16 × 4</option>
+<option value="20x4">20 × 4</option>
+</select>
+</div>
+<pre id="lcdErrorPreview" class="lcd-error-preview"></pre>
+<p class="message-help">Fallback text: <strong>INDEX OUT OF RANGE ERROR</strong>. It is generated independently of the configured message table, so it remains available even when the index itself is invalid.</p>
+</section>
+</div>
+
 <section class="card">
 <div class="actions"><button id="saveButton">Save Configuration</button><a class="btn" href="index.html">Return Home</a></div>
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.12';
+const CONFIG_VERSION='1.13';
 const CONFIG_SCHEMA='PICO_PLC_CONFIGURATION';
 const CONFIG_SCHEMA_VERSION=2;
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
@@ -120,6 +180,25 @@ const tabs=[...document.querySelectorAll('.tab-button')];
 const panels=[...document.querySelectorAll('.tab-panel')];
 let ioState={};
 let logicalAllocation={nextInput:1,nextOutput:1};
+
+let lcdDevices=[];
+let lcdMessageTables={};
+
+const LCD_GEOMETRIES={
+  '16x2':{columns:16,rows:2,label:'16 × 2'},
+  '20x2':{columns:20,rows:2,label:'20 × 2'},
+  '16x4':{columns:16,rows:4,label:'16 × 4'},
+  '20x4':{columns:20,rows:4,label:'20 × 4'}
+};
+const LCD_MESSAGE_REGISTER_BASE=50001;
+const LCD_ERROR_TEXT='INDEX OUT OF RANGE ERROR';
+
+const lcdDeviceBody=document.getElementById('lcdDeviceBody');
+const messageTablesHost=document.getElementById('messageTables');
+const addLcdButton=document.getElementById('addLcdButton');
+const errorPreviewGeometry=document.getElementById('errorPreviewGeometry');
+const lcdErrorPreview=document.getElementById('lcdErrorPreview');
+
 
 const picoPins=[...Array(23).keys(),26,27,28].map(n=>`GP${n}`);
 picoPins.forEach(pin=>{const o=document.createElement('option');o.value=pin;o.textContent=pin;mcpInterruptPin.appendChild(o);});
@@ -501,6 +580,295 @@ function activeI2CPins(protocol){
  return sda&&scl?{sda,scl}:null;
 }
 
+
+function normalizeLcdAddress(value){
+ const raw=String(value||'').trim();
+ if(/^0x[0-9A-Fa-f]{2}$/.test(raw))return raw.toUpperCase().replace('X','x');
+ const n=Number(raw);
+ if(Number.isInteger(n)&&n>=0x03&&n<=0x77)return `0x${n.toString(16).toUpperCase().padStart(2,'0')}`;
+ return null;
+}
+function nextLcdId(){
+ let n=1;
+ const used=new Set(lcdDevices.map(d=>d.id));
+ while(used.has(`LCD${n}`))n++;
+ return `LCD${n}`;
+}
+function nextMessageRegister(){
+ const used=new Set(lcdDevices.map(d=>d.messageRegister));
+ let n=LCD_MESSAGE_REGISTER_BASE;
+ while(used.has(`M:${String(n).padStart(5,'0')}`))n++;
+ return `M:${String(n).padStart(5,'0')}`;
+}
+function defaultMessageForGeometry(geometry){
+ const g=LCD_GEOMETRIES[geometry]||LCD_GEOMETRIES['16x2'];
+ return Array.from({length:g.rows},()=>''.padEnd(0,''));
+}
+function ensureMessageTable(geometry){
+ if(!LCD_GEOMETRIES[geometry])geometry='16x2';
+ if(!Array.isArray(lcdMessageTables[geometry]))lcdMessageTables[geometry]=[];
+ if(lcdMessageTables[geometry].length===0){
+   lcdMessageTables[geometry].push({index:0,lines:defaultMessageForGeometry(geometry)});
+ }
+ return lcdMessageTables[geometry];
+}
+function normalizeMessageTable(geometry,table){
+ const g=LCD_GEOMETRIES[geometry];
+ if(!g)return [];
+ return (Array.isArray(table)?table:[]).map((entry,index)=>({
+   index,
+   lines:Array.from({length:g.rows},(_,line)=>{
+     const value=String(entry?.lines?.[line]??'');
+     return value.slice(0,g.columns);
+   })
+ }));
+}
+function usedLcdGeometries(){
+ return [...new Set(lcdDevices.filter(d=>d.enabled).map(d=>d.geometry).filter(g=>LCD_GEOMETRIES[g]))];
+}
+function renderLcdDevices(){
+ lcdDeviceBody.innerHTML='';
+ lcdDevices.forEach((device,index)=>{
+   const tr=document.createElement('tr');
+
+   const enabledTd=document.createElement('td');
+   const enabled=document.createElement('input');
+   enabled.type='checkbox';
+   enabled.checked=device.enabled!==false;
+   enabled.addEventListener('change',()=>{
+     device.enabled=enabled.checked;
+     renderMessageTables();
+   });
+   enabledTd.appendChild(enabled);
+
+   const nameTd=document.createElement('td');
+   const name=document.createElement('input');
+   name.type='text';
+   name.value=device.name||device.id||`LCD ${index+1}`;
+   name.maxLength=32;
+   name.addEventListener('input',()=>device.name=name.value);
+   nameTd.appendChild(name);
+
+   const busTd=document.createElement('td');
+   const bus=document.createElement('select');
+   bus.innerHTML='<option value="I2C0">I2C0</option><option value="I2C1">I2C1</option>';
+   bus.value=['I2C0','I2C1'].includes(device.bus)?device.bus:'I2C0';
+   bus.addEventListener('change',()=>device.bus=bus.value);
+   busTd.appendChild(bus);
+
+   const addressTd=document.createElement('td');
+   const address=document.createElement('input');
+   address.type='text';
+   address.value=device.address||'0x3F';
+   address.placeholder='0x3F';
+   address.maxLength=4;
+   address.addEventListener('change',()=>{
+     const normalized=normalizeLcdAddress(address.value);
+     if(normalized){device.address=normalized;address.value=normalized;}
+   });
+   addressTd.appendChild(address);
+
+   const geometryTd=document.createElement('td');
+   const geometry=document.createElement('select');
+   Object.entries(LCD_GEOMETRIES).forEach(([key,g])=>{
+     const option=document.createElement('option');
+     option.value=key;
+     option.textContent=g.label;
+     geometry.appendChild(option);
+   });
+   geometry.value=LCD_GEOMETRIES[device.geometry]?device.geometry:'16x2';
+   geometry.addEventListener('change',()=>{
+     device.geometry=geometry.value;
+     ensureMessageTable(device.geometry);
+     renderMessageTables();
+   });
+   geometryTd.appendChild(geometry);
+
+   const registerTd=document.createElement('td');
+   registerTd.className='message-register';
+   registerTd.textContent=device.messageRegister;
+
+   tr.append(enabledTd,nameTd,busTd,addressTd,geometryTd,registerTd);
+   lcdDeviceBody.appendChild(tr);
+ });
+}
+function addLcdDevice(){
+ const id=nextLcdId();
+ const device={
+   id,
+   name:`LCD ${lcdDevices.length+1}`,
+   enabled:true,
+   bus:'I2C0',
+   address:'0x3F',
+   geometry:'16x2',
+   messageRegister:nextMessageRegister()
+ };
+ lcdDevices.push(device);
+ ensureMessageTable(device.geometry);
+ renderLcdDevices();
+ renderMessageTables();
+}
+function removeMessage(geometry,index){
+ const table=ensureMessageTable(geometry);
+ if(table.length<=1)return;
+ table.splice(index,1);
+ lcdMessageTables[geometry]=normalizeMessageTable(geometry,table);
+ renderMessageTables();
+}
+function addMessage(geometry){
+ const table=ensureMessageTable(geometry);
+ table.push({index:table.length,lines:defaultMessageForGeometry(geometry)});
+ lcdMessageTables[geometry]=normalizeMessageTable(geometry,table);
+ renderMessageTables();
+}
+function renderMessageTables(){
+ messageTablesHost.innerHTML='';
+ const geometries=usedLcdGeometries();
+ if(!geometries.length){
+   const p=document.createElement('p');
+   p.className='placeholder';
+   p.textContent='Add and enable an LCD device to create its geometry-specific message table.';
+   messageTablesHost.appendChild(p);
+   return;
+ }
+
+ geometries.forEach(geometry=>{
+   const g=LCD_GEOMETRIES[geometry];
+   const table=ensureMessageTable(geometry);
+   const card=document.createElement('div');
+   card.className='message-table-card';
+
+   const heading=document.createElement('h3');
+   heading.textContent=`${g.label} Message Table`;
+   const note=document.createElement('p');
+   note.className='message-help';
+   note.textContent=`Used only by LCD devices configured as ${g.label}. Each index stores ${g.rows} line${g.rows===1?'':'s'} of up to ${g.columns} characters per line.`;
+
+   const wrap=document.createElement('div');
+   wrap.className='table-wrap';
+   const tableEl=document.createElement('table');
+   tableEl.className='message-table';
+   tableEl.innerHTML='<thead><tr><th>Index</th><th>Screen Message</th><th></th></tr></thead>';
+   const body=document.createElement('tbody');
+
+   table.forEach((entry,index)=>{
+     const tr=document.createElement('tr');
+     const indexTd=document.createElement('td');
+     indexTd.className='message-index';
+     indexTd.textContent=String(index);
+
+     const msgTd=document.createElement('td');
+     const grid=document.createElement('div');
+     grid.className='message-line-grid';
+
+     for(let line=0;line<g.rows;line++){
+       const input=document.createElement('input');
+       input.type='text';
+       input.maxLength=g.columns;
+       input.placeholder=`Line ${line+1} — max ${g.columns} characters`;
+       input.value=String(entry.lines?.[line]??'').slice(0,g.columns);
+       input.addEventListener('input',()=>{
+         while(!entry.lines || entry.lines.length<g.rows){
+           if(!entry.lines)entry.lines=[];
+           entry.lines.push('');
+         }
+         entry.lines[line]=input.value.slice(0,g.columns);
+       });
+       grid.appendChild(input);
+     }
+     msgTd.appendChild(grid);
+
+     const actionTd=document.createElement('td');
+     const remove=document.createElement('button');
+     remove.type='button';
+     remove.className='danger-button small-button';
+     remove.textContent='Remove';
+     remove.disabled=table.length<=1;
+     remove.addEventListener('click',()=>removeMessage(geometry,index));
+     actionTd.appendChild(remove);
+
+     tr.append(indexTd,msgTd,actionTd);
+     body.appendChild(tr);
+   });
+
+   tableEl.appendChild(body);
+   wrap.appendChild(tableEl);
+
+   const toolbar=document.createElement('div');
+   toolbar.className='message-toolbar';
+   const add=document.createElement('button');
+   add.type='button';
+   add.className='small-button';
+   add.textContent='Add Message';
+   add.addEventListener('click',()=>addMessage(geometry));
+   const count=document.createElement('span');
+   count.className='message-help';
+   count.textContent=`Valid indices: 0–${Math.max(0,table.length-1)}`;
+   toolbar.append(add,count);
+
+   card.append(heading,note,toolbar,wrap);
+   messageTablesHost.appendChild(card);
+ });
+}
+function wrapLcdErrorMessage(geometry){
+ const g=LCD_GEOMETRIES[geometry]||LCD_GEOMETRIES['16x2'];
+ const words=LCD_ERROR_TEXT.split(/\s+/);
+ const lines=[];
+ let current='';
+ for(const word of words){
+   const proposed=current?`${current} ${word}`:word;
+   if(proposed.length<=g.columns){
+     current=proposed;
+   }else{
+     if(current)lines.push(current);
+     if(word.length<=g.columns){
+       current=word;
+     }else{
+       let rest=word;
+       while(rest.length>g.columns){
+         lines.push(rest.slice(0,g.columns));
+         rest=rest.slice(g.columns);
+       }
+       current=rest;
+     }
+   }
+ }
+ if(current)lines.push(current);
+ while(lines.length<g.rows)lines.push('');
+ return lines.slice(0,g.rows).map(line=>line.padEnd(g.columns,' ')).join('\n');
+}
+function renderLcdErrorPreview(){
+ lcdErrorPreview.textContent=wrapLcdErrorMessage(errorPreviewGeometry.value);
+}
+function buildLcdConfiguration(){
+ const devices=lcdDevices.map((device,index)=>({
+   id:device.id||`LCD${index+1}`,
+   name:String(device.name||`LCD ${index+1}`).trim(),
+   enabled:device.enabled!==false,
+   bus:['I2C0','I2C1'].includes(device.bus)?device.bus:'I2C0',
+   address:normalizeLcdAddress(device.address)||String(device.address||''),
+   geometry:LCD_GEOMETRIES[device.geometry]?device.geometry:'16x2',
+   columns:LCD_GEOMETRIES[device.geometry]?.columns||16,
+   rows:LCD_GEOMETRIES[device.geometry]?.rows||2,
+   messageRegister:device.messageRegister||`M:${String(LCD_MESSAGE_REGISTER_BASE+index).padStart(5,'0')}`
+ }));
+ const messageTables={};
+ Object.keys(lcdMessageTables).forEach(geometry=>{
+   if(LCD_GEOMETRIES[geometry]){
+     messageTables[geometry]=normalizeMessageTable(geometry,lcdMessageTables[geometry]);
+   }
+ });
+ return {
+   registerBase:`M:${String(LCD_MESSAGE_REGISTER_BASE).padStart(5,'0')}`,
+   devices,
+   messageTables,
+   outOfRange:{
+     text:LCD_ERROR_TEXT,
+     behavior:'geometry_wrapped_builtin'
+   }
+ };
+}
+
 function buildCanonicalConfiguration(){
  refreshLogicalPoints();
  const gpio=[];
@@ -570,6 +938,7 @@ function buildCanonicalConfiguration(){
      }
    },
    mcpRuntime,
+   lcd:buildLcdConfiguration(),
    i2cDevices:enabledMcp.map(address=>{
      const bus=selectedMcpBus(address); const pins=activeI2CPins(bus);
      return {
@@ -640,6 +1009,52 @@ function validateConfiguration(config){
      if(!dev.sdaPin||!dev.sclPin)errors.push(`${dev.address} uses ${dev.bus}, but a complete enabled ${dev.bus} SDA/SCL pin group has not been configured in the Digital I/O table.`);
    }
  }
+
+ const lcdConfig=config.lcd;
+ if(lcdConfig){
+   const registers=new Set();
+   const addressKeys=new Set();
+
+   for(const device of lcdConfig.devices||[]){
+     if(!device.enabled)continue;
+
+     if(!String(device.name||'').trim())errors.push('An enabled LCD device is missing a Device Name.');
+     if(!['I2C0','I2C1'].includes(device.bus))errors.push(`${device.name||device.id} has an invalid I²C bus selection.`);
+     if(!normalizeLcdAddress(device.address))errors.push(`${device.name||device.id} has an invalid I²C address.`);
+     if(!LCD_GEOMETRIES[device.geometry])errors.push(`${device.name||device.id} has an unsupported display geometry.`);
+
+     if(!/^M:5\d{4}$/.test(device.messageRegister||'')){
+       errors.push(`${device.name||device.id} has an invalid Message Register.`);
+     }else if(registers.has(device.messageRegister)){
+       errors.push(`${device.messageRegister} is assigned to more than one LCD device.`);
+     }else{
+       registers.add(device.messageRegister);
+     }
+
+     const key=`${device.bus}|${String(device.address).toUpperCase()}`;
+     if(addressKeys.has(key))errors.push(`${device.name||device.id} duplicates another LCD device at ${device.address} on ${device.bus}.`);
+     addressKeys.add(key);
+
+     const sameBusMcp=(config.mcp23017||[]).find(m=>m.bus===device.bus && String(m.address).toUpperCase()===String(device.address).toUpperCase());
+     if(sameBusMcp)errors.push(`${device.name||device.id} conflicts with MCP23017 ${device.address} on ${device.bus}.`);
+
+     const table=lcdConfig.messageTables?.[device.geometry];
+     if(!Array.isArray(table)||!table.length)errors.push(`${device.name||device.id} does not have a message table for ${device.geometry}.`);
+   }
+
+   for(const [geometry,table] of Object.entries(lcdConfig.messageTables||{})){
+     const g=LCD_GEOMETRIES[geometry];
+     if(!g)continue;
+     (table||[]).forEach((message,index)=>{
+       if(message.index!==index)errors.push(`${geometry} message table indices must be contiguous from 0.`);
+       if(!Array.isArray(message.lines)||message.lines.length!==g.rows)errors.push(`${geometry} message ${index} must contain exactly ${g.rows} lines.`);
+       (message.lines||[]).forEach((line,lineIndex)=>{
+         if(String(line).length>g.columns)errors.push(`${geometry} message ${index}, line ${lineIndex+1} exceeds ${g.columns} characters.`);
+       });
+     });
+   }
+ }
+
  return [...new Set(errors)];
 }
 function resetDigitalIO(){
@@ -729,6 +1144,26 @@ function loadConfiguration(){
      logicalAllocation.nextOutput=Math.max(1,Number(config.allocation.nextOutput)||1);
    }
    migrateLegacyLogicalPoints();
+
+   if(config.lcd && typeof config.lcd==='object'){
+     lcdDevices=Array.isArray(config.lcd.devices)
+       ? config.lcd.devices.map((d,index)=>({
+           id:d.id||`LCD${index+1}`,
+           name:d.name||`LCD ${index+1}`,
+           enabled:d.enabled!==false,
+           bus:['I2C0','I2C1'].includes(d.bus)?d.bus:'I2C0',
+           address:normalizeLcdAddress(d.address)||'0x3F',
+           geometry:LCD_GEOMETRIES[d.geometry]?d.geometry:'16x2',
+           messageRegister:/^M:\d{5}$/.test(d.messageRegister||'')
+             ? d.messageRegister
+             : `M:${String(LCD_MESSAGE_REGISTER_BASE+index).padStart(5,'0')}`
+         }))
+       : [];
+     lcdMessageTables={};
+     for(const [geometry,table] of Object.entries(config.lcd.messageTables||{})){
+       if(LCD_GEOMETRIES[geometry])lcdMessageTables[geometry]=normalizeMessageTable(geometry,table);
+     }
+   }
   }catch(e){console.warn('Unable to load PLC configuration:',e);}
  }
  reserveMcpInterruptPin(mcpInterruptPin.value);
@@ -748,7 +1183,17 @@ mcpInterruptPin.addEventListener('change',()=>{
 });
 document.getElementById('saveButton').addEventListener('click',saveConfiguration);
 document.getElementById('resetIoButton').addEventListener('click',resetDigitalIO);
+addLcdButton.addEventListener('click',addLcdDevice);
+errorPreviewGeometry.addEventListener('change',renderLcdErrorPreview);
 loadConfiguration();
+if(lcdDevices.length===0){
+ addLcdDevice();
+}else{
+ lcdDevices.forEach(d=>ensureMessageTable(d.geometry));
+ renderLcdDevices();
+ renderMessageTables();
+}
+renderLcdErrorPreview();
 </script>
 </body>
 </html>
