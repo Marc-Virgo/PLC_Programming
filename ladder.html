@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v2.05</title>
+  <title>Ladder Logic — v2.06</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile-icon{display:block;max-width:100%;height:40px;width:auto;object-fit:contain;pointer-events:none}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -802,7 +802,7 @@
 <body>
 <div class="app">
 <header class="topbar">
-  <div class="title">Ladder Logic — v2.05</div>
+  <div class="title">Ladder Logic — v2.06</div>
 
   <div class="ribbon-main-controls">
     <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button>
@@ -875,7 +875,7 @@ const blockLibrary = {
     "Counter"
   ],
   math: ["Add", "Subtract", "Multiply", "Division"],
-  special: ["Block Move", "Analog In", "Analog Out", "PID"]
+  special: ["Block Move", "Analog In", "Analog Out", "PID", "LCD Message"]
 };
 
 const headings = {
@@ -1024,6 +1024,15 @@ const placeableDefinitions = {
     key: "pid",
     programType: "pid",
     image: "./images/add.png",
+    width: 140,
+    height: 280,
+    topOffset: 0,
+    spanRows: 2
+  },
+  "LCD Message": {
+    key: "lcd_message",
+    programType: "lcd_message",
+    image: "./images/LCD_message.png",
     width: 140,
     height: 280,
     topOffset: 0,
@@ -1320,7 +1329,8 @@ const programTypeToLabel = {
   block_move: "Block Move",
   analog_in: "Analog In",
   analog_out: "Analog Out",
-  pid: "PID"
+  pid: "PID",
+  lcd_message: "LCD Message"
 };
 
 function getDefinitionByProgramType(programType) {
@@ -1337,6 +1347,53 @@ function getRawPlcConfiguration() {
     console.warn("Unable to read PLC configuration:", error);
     return {};
   }
+}
+
+
+function getConfiguredLcdDevices() {
+  const config = getRawPlcConfiguration();
+  return (Array.isArray(config?.lcd?.devices) ? config.lcd.devices : [])
+    .filter(device => device && device.enabled !== false)
+    .map((device, index) => ({
+      ...device,
+      id: String(device.id || `LCD${index + 1}`),
+      name: String(device.name || device.id || `LCD ${index + 1}`),
+      geometry: String(device.geometry || `${device.columns || 16}x${device.rows || 2}`),
+      messageRegister: String(device.messageRegister || `M:${String(50001 + index).padStart(5, "0")}`)
+    }));
+}
+
+async function promptForLcdMessageConfiguration(current = null, title = "Configure LCD Message") {
+  const devices = getConfiguredLcdDevices();
+  if (!devices.length) {
+    alert("No enabled LCD devices are configured. Configure one on Configuration → LCD / Messages first.");
+    return null;
+  }
+  const selected =
+    devices.some(d => d.id === current?.lcdDeviceId)
+      ? current.lcdDeviceId
+      : devices[0].id;
+  const result = await showElementPropertyEditor({
+    title,
+    fields: [{
+      key:"lcdDeviceId",
+      label:"LCD Device",
+      options:devices.map(d => ({
+        value:d.id,
+        label:`${d.name} — ${d.geometry} — ${d.messageRegister}`
+      }))
+    }],
+    values:{lcdDeviceId:selected}
+  });
+  if (!result) return null;
+  const device = devices.find(d => d.id === result.lcdDeviceId);
+  if (!device) return null;
+  return {
+    lcdDeviceId:device.id,
+    lcdDeviceName:device.name,
+    geometry:device.geometry,
+    messageRegister:device.messageRegister
+  };
 }
 
 function crc32Text(text) {
@@ -1503,11 +1560,50 @@ function buildOptimizedConfiguration(configuration = getRawPlcConfiguration()) {
     if (!mcpMap.has(addr)) mcpMap.set(addr, []);
   }
 
+  const lcdSource = configuration?.lcd || {};
+  const enabledLcd = (Array.isArray(lcdSource.devices) ? lcdSource.devices : [])
+    .filter(device => device && device.enabled !== false);
+  const gpioRows = Array.isArray(configuration?.gpio) ? configuration.gpio : [];
+  const gpNumber = value => {
+    const m = /^GP(\d+)$/.exec(String(value || ""));
+    return m ? Number(m[1]) : -1;
+  };
+  const busPins = bus => ({
+    sda: gpNumber(gpioRows.find(row => row?.enabled && row.function === `${bus} SDA`)?.pin),
+    scl: gpNumber(gpioRows.find(row => row?.enabled && row.function === `${bus} SCL`)?.pin)
+  });
+  const lcd = {
+    t:Object.entries(lcdSource.messageTables || {}).map(([geometry,messages]) => {
+      const m = /^(\d+)x(\d+)$/.exec(geometry);
+      if (!m || !Array.isArray(messages)) return null;
+      const columns=Number(m[1]), rows=Number(m[2]);
+      return [columns,rows,messages.map(message =>
+        Array.from({length:rows},(_,line)=>String(message?.lines?.[line]??"").slice(0,columns))
+      )];
+    }).filter(Boolean),
+    d:enabledLcd.map(device => {
+      const bus=String(device.bus||"I2C0").toUpperCase();
+      const pins=busPins(bus);
+      const addr=Number.parseInt(String(device.address||""),16);
+      const rm=/^M:(\d{5})$/i.exec(String(device.messageRegister||""));
+      const gm=/^(\d+)x(\d+)$/.exec(String(device.geometry||"16x2"));
+      return [
+        bus==="I2C1"?1:0,
+        Number.isInteger(addr)?addr:-1,
+        pins.sda,pins.scl,
+        Number(device.columns)||(gm?Number(gm[1]):16),
+        Number(device.rows)||(gm?Number(gm[2]):2),
+        rm?Number(rm[1]):-1
+      ];
+    })
+  };
+
   return {
     controller: controllerMap[model] || "PICO_2_W",
     gpio,
     mcp: [...mcpMap.entries()].map(([address, pins]) => [address, pins]),
-    io
+    io,
+    lcd
   };
 }
 
@@ -1558,7 +1654,13 @@ function getConfigurationForProgram() {
         : [];
     return {
       controller: controllerMap[model] || fallback.controller,
-      mcp23017: devices
+      mcp23017: devices,
+      lcd: getConfiguredLcdDevices().map(device => ({
+        id:device.id,
+        name:device.name,
+        geometry:device.geometry,
+        messageRegister:device.messageRegister
+      }))
     };
   } catch (error) {
     console.warn("Unable to read PLC configuration:", error);
@@ -2492,6 +2594,7 @@ function elementEditorFields(type) {
       {key:"kp",label:"Kp",type:"number",step:"any"},{key:"ki",label:"Ki",type:"number",step:"any"},{key:"kd",label:"Kd",type:"number",step:"any"},
       {key:"dt",label:"Δt (s)",type:"number",min:0,step:"any"},{key:"openLoop",label:"Open Loop",type:"checkbox"},{key:"manualOutput",label:"Manual Output",type:"number",step:"any"}
     ];
+    case "lcd_message": return [];
     default: return [];
   }
 }
@@ -3254,6 +3357,16 @@ function renderDivideRuntimeOverlay(
   `;
 }
 
+
+function processStateLcdMessageMap(snapshot) {
+  const map = new Map();
+  for (const item of snapshot?.lcdMessages || []) {
+    if (!Array.isArray(item) || item.length < 2) continue;
+    map.set(String(item[0]), { indexError: !!item[1] });
+  }
+  return map;
+}
+
 function processStateDivideMap(snapshot) {
   const map = new Map();
 
@@ -3967,6 +4080,14 @@ async function editPlacedElement(tile) {
     return;
   }
 
+  if (type === "lcd_message") {
+    const updatedLcd = await promptForLcdMessageConfiguration(properties, "Edit LCD Message");
+    if (!updatedLcd) return;
+    tile.dataset.properties = JSON.stringify(updatedLcd);
+    scheduleLadderWorkspaceAutosave();
+    return;
+  }
+
   const fields = elementEditorFields(type);
   if (!fields.length) return;
   const updated = await showElementPropertyEditor({ title:`Edit ${programTypeToLabel[type] || type}`, fields, values:properties });
@@ -4225,6 +4346,14 @@ function defaultPortsForType(type) {
         boolPort("notOutput", "output")
       ];
 
+    case "lcd_message":
+      return [
+        boolPort("enable", "input"),
+        boolPort("reset", "input"),
+        boolPort("output", "output"),
+        boolPort("indexError", "output")
+      ];
+
     default:
       return [];
   }
@@ -4246,6 +4375,12 @@ function defaultPropertiesForType(type) {
   if (type === "subtract") return { minuend: null, subtrahend: null, result: null };
   if (type === "multiply") return { multiplicand: null, multiplier: null, result: null };
   if (type === "divide") return { dividend: null, divisor: null, result: null, remainder: null };
+  if (type === "lcd_message") return {
+    lcdDeviceId: null,
+    lcdDeviceName: "",
+    geometry: null,
+    messageRegister: null
+  };
   if (type === "block_move") return { source: null, destination: null, length: 1 };
   if (type === "analog_in") return { adcInput: null, result: null, sampleRateTimer: null };
   if (type === "analog_out") return { pwmOutput: null, source: null, sampleRateTimer: null };
@@ -4290,6 +4425,9 @@ function runtimeFieldsForType(type) {
 
     case "divide":
       return ["enable", "remainderSelect", "success", "remainderStatus", "mathError"];
+
+    case "lcd_message":
+      return ["enable", "reset", "output", "indexError"];
 
     case "vertical_shunt":
       return ["upper", "lower", "output"];
@@ -4728,6 +4866,7 @@ const optimizerOpcodes = {
   analog_in: 33,
   analog_out: 34,
   pid: 35,
+  lcd_message: 36,
   and: 48,
   or: 49,
   not: 50,
@@ -4945,7 +5084,7 @@ function buildOptimizedProgram(program = buildProgramObject(), projectMeta = nul
       continue;
     }
 
-    if (["timer", "counter", "add", "subtract", "multiply", "divide", "block_move", "analog_in", "analog_out", "pid"].includes(block.type)) {
+    if (["timer", "counter", "add", "subtract", "multiply", "divide", "block_move", "analog_in", "analog_out", "pid", "lcd_message"].includes(block.type)) {
       functionBlocks.push(block);
       ordinaryByCell.set(cellKey(block.position.row, block.position.col), block);
       continue;
@@ -4976,7 +5115,7 @@ function buildOptimizedProgram(program = buildProgramObject(), projectMeta = nul
           if (fn.position.col !== col) return false;
           const relativeRow = row - fn.position.row;
           if (relativeRow <= 0) return false;
-          if (fn.type === "timer" || fn.type === "counter" || fn.type === "add") return relativeRow === 1;
+          if (fn.type === "timer" || fn.type === "counter" || fn.type === "add" || fn.type === "lcd_message") return relativeRow === 1;
           if (fn.type === "subtract" || fn.type === "divide") return relativeRow === 1 || relativeRow === 2;
           return false;
         });
@@ -5281,6 +5420,32 @@ function buildOptimizedProgram(program = buildProgramObject(), projectMeta = nul
               block.properties?.manualOutput ?? 0
             ],
             inputs: [prior]
+          };
+          break;
+        }
+
+        case "lcd_message": {
+          const top = block.position.row;
+          const enableExpr = boundary[top];
+          const resetExpr = boundary[top + 1];
+          if (!enableExpr || !resetExpr) break;
+
+          const devices = getConfiguredLcdDevices();
+          const deviceIndex = devices.findIndex(
+            device => device.id === String(block.properties?.lcdDeviceId || "")
+          );
+          if (deviceIndex < 0) {
+            throw new Error(`LCD Message block ${block.id} references an LCD device that is not enabled in Configuration.`);
+          }
+
+          rawNext[row] = {
+            kind:"function",
+            opcode:optimizerOpcodes.lcd_message,
+            id:block.id,
+            // [deviceIndex, inputCount, outputSelector]
+            // 0 = mirror Enable, 1 = Index Out Of Range error
+            params:[deviceIndex, 2, outputSelector],
+            inputs:[enableExpr, resetExpr]
           };
           break;
         }
@@ -6048,6 +6213,7 @@ function applyAbsoluteMonitoringView(snapshot) {
         renderAddOutputState(tile, false, false);
         break;
       case "divide":
+      case "lcd_message":
         active = false;
         break;
       case "subtract":
@@ -6226,6 +6392,25 @@ function applySeriesMonitoringView(snapshot) {
             powerOut = !!telemetry.remainderStatus;
           } else if (relativeRow === 2) {
             powerOut = !!telemetry.mathError;
+          } else {
+            powerOut = false;
+          }
+
+          rawNext[row] = powerOut;
+          continue;
+        }
+
+        case "lcd_message": {
+          const relativeRow = row - block.position.row;
+          const telemetry =
+            processStateLcdMessageMap(snapshot).get(String(block.id)) || null;
+
+          setMonitoringGlow(block.id, false, false);
+
+          if (relativeRow === 0) {
+            powerOut = powerIn;
+          } else if (relativeRow === 1) {
+            powerOut = !!telemetry?.indexError;
           } else {
             powerOut = false;
           }
@@ -8641,6 +8826,13 @@ workspace.addEventListener("click", async event => {
     placementProperties = await promptForDivideConfiguration(
       placementProperties,
       "Configure DIV"
+    );
+    if (!placementProperties) return;
+  }
+  if (placementDefinition.programType === "lcd_message") {
+    placementProperties = await promptForLcdMessageConfiguration(
+      placementProperties,
+      "Configure LCD Message"
     );
     if (!placementProperties) return;
   }
