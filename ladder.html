@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladder Logic — v2.08</title>
+  <title>Ladder Logic — v2.09</title>
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;color:#1f2937;background:#eef1f4}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}.app{display:grid;grid-template-rows:64px 1fr;height:100vh}.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:white;border-bottom:1px solid #374151}.title{font-weight:700;margin-right:12px;white-space:nowrap}.category-button,.home-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;text-decoration:none}.category-button{background:#374151;color:white}.category-button:hover,.category-button.active{background:#f3f4f6;color:#111827}.home-button{background:#2563eb;color:white}.file-button{border:0;border-radius:8px;padding:11px 16px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.file-button:hover{background:#4b5563}.file-button.first{margin-left:auto}.add-rows-button{border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:700;cursor:pointer;background:#374151;color:white}.add-rows-button:hover{background:#4b5563}.main{display:grid;grid-template-columns:190px 1fr;min-height:0}.palette{background:#fff;border-right:1px solid #cfd4da;padding:14px 10px;overflow-y:auto}.palette-heading{margin:0 0 12px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tile-list{display:flex;flex-direction:column;gap:10px}.tile{min-height:62px;border:2px solid #374151;background:#f9fafb;border-radius:8px;padding:8px;display:grid;place-items:center;text-align:center;font-weight:700;cursor:grab;user-select:none}.tile:hover{background:#e5e7eb}.tile-icon{display:block;max-width:100%;height:40px;width:auto;object-fit:contain;pointer-events:none}.tile:active{cursor:grabbing}.workspace-wrap{display:grid;grid-template-rows:42px 1fr;min-width:0;min-height:0}.workspace-toolbar{display:flex;align-items:center;padding:0 14px;background:#f8fafc;border-bottom:1px solid #cfd4da;font-size:.9rem;color:#4b5563}.workspace{position:relative;overflow-x:auto;overflow-y:scroll;min-width:0;min-height:0;background:#d1d5db}.ladder-canvas{position:relative;isolation:isolate;width:1260px;min-width:1260px;height:2240px;padding:0;background-color:#fff;background-image:linear-gradient(to bottom,#6b7280 2px,transparent 2px),linear-gradient(to right,#6b7280 2px,transparent 2px),linear-gradient(to bottom,#e5e7eb 1px,transparent 1px),linear-gradient(to right,#e5e7eb 1px,transparent 1px);background-size:140px 140px,140px 140px,28px 28px,28px 28px;background-position:0 0,0 0,0 0,0 0}.rail{position:absolute;top:0;bottom:0;width:5px;background:#111827;z-index:20}.rail.left{left:0}.placeholder{margin-left:45px;margin-right:45px;border-top:3px solid #111827;position:relative;top:70px;height:80px}.placeholder::before{content:"Rung workspace";position:absolute;top:10px;left:18px;color:#9ca3af;font-size:.9rem}@media(max-width:700px){.app{grid-template-rows:auto 1fr}.topbar{flex-wrap:wrap}.title{width:100%}.home-button{margin-left:0}.main{grid-template-columns:145px 1fr}.category-button,.home-button,.add-rows-button,.file-button{padding:9px 12px;font-size:.9rem}}
   
@@ -812,7 +812,7 @@
 <body>
 <div class="app">
 <header class="topbar">
-  <div class="title">Ladder Logic — v2.08</div>
+  <div class="title">Ladder Logic — v2.09</div>
 
   <div class="ribbon-main-controls">
     <button class="editor-toggle-button" id="editorToggleButton" type="button">Enable Editor</button>
@@ -860,6 +860,7 @@
   <label class="developer-debug-metric">I/O C/Min/A/Max <input id="ioTimingDebugInput" type="text" value="—" readonly></label>
   <label class="developer-debug-metric">I²C C/Min/A/Max <input id="i2cTimingDebugInput" type="text" value="—" readonly></label>
   <label class="developer-debug-metric counters">MCP U/B/W/RF/WF/S/HW <input id="mcpCountersDebugInput" type="text" value="—" readonly></label>
+  <label class="developer-debug-metric counters">IRQ Mode/Counts <input id="mcpIrqDebugInput" type="text" value="—" readonly></label>
   <button id="copyDebugValuesButton" class="copy-debug-button" type="button">Copy Debug Values</button>
   <span id="copyDebugFeedback" class="copy-debug-feedback" role="status"></span>
 </div></div><div class="workspace"><div class="ladder-canvas"><div class="rail left"></div>
@@ -1109,6 +1110,7 @@ const scanTimingDebugInput = document.getElementById("scanTimingDebugInput");
 const ioTimingDebugInput = document.getElementById("ioTimingDebugInput");
 const i2cTimingDebugInput = document.getElementById("i2cTimingDebugInput");
 const mcpCountersDebugInput = document.getElementById("mcpCountersDebugInput");
+const mcpIrqDebugInput = document.getElementById("mcpIrqDebugInput");
 const copyDebugValuesButton = document.getElementById("copyDebugValuesButton");
 const copyDebugFeedback = document.getElementById("copyDebugFeedback");
 const executionEngineDebugLabel = document.getElementById("executionEngineDebugLabel");
@@ -5943,6 +5945,19 @@ function updateFirmwareDebugMetrics(snapshot) {
     const highWater = snapshot.mcpFifoHighWaterMark ?? 0;
     mcpCountersDebugInput.value = `${u} / ${b} / ${w} / ${rf} / ${wf} / ${stale} / ${highWater}`;
   }
+  if (mcpIrqDebugInput) {
+    const mode = snapshot.mcpInterruptMode || "none";
+    const counts = Array.isArray(snapshot.mcpInterrupts)
+      ? snapshot.mcpInterrupts.map(row => {
+          const address = Number(row?.[1]);
+          const gpio = Number(row?.[2]);
+          const count = Number(row?.[3]) || 0;
+          const addrText = Number.isFinite(address) ? `0x${address.toString(16).toUpperCase().padStart(2,"0")}` : "?";
+          return `${addrText}@GP${gpio}:${count}`;
+        }).join(" ")
+      : "";
+    mcpIrqDebugInput.value = `${mode}${counts ? " | " + counts : ""}`;
+  }
 }
 
 function guiTimingStats(samples, maximum) {
@@ -5979,7 +5994,15 @@ function buildDebugClipboardText() {
     `MCP failed reads: ${snapshot.failedMcpReads ?? 0}`,
     `MCP failed writes: ${snapshot.failedMcpWrites ?? 0}`,
     `MCP stale FIFO entries skipped: ${snapshot.skippedStaleMcpFifoEntries ?? 0}`,
-    `MCP FIFO high-water mark: ${snapshot.mcpFifoHighWaterMark ?? 0}`
+    `MCP FIFO high-water mark: ${snapshot.mcpFifoHighWaterMark ?? 0}`,
+    `MCP interrupt mode: ${snapshot.mcpInterruptMode || "none"}`,
+    `MCP interrupt counts: ${Array.isArray(snapshot.mcpInterrupts) ? snapshot.mcpInterrupts.map(row => {
+      const address = Number(row?.[1]);
+      const gpio = Number(row?.[2]);
+      const count = Number(row?.[3]) || 0;
+      const addrText = Number.isFinite(address) ? `0x${address.toString(16).toUpperCase().padStart(2,"0")}` : "?";
+      return `${addrText}@GP${gpio}=${count}`;
+    }).join(", ") : "none"}`
   ].join("\n");
 }
 
