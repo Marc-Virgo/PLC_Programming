@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.14</title>
+<title>PLC Configuration v1.15</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
@@ -66,8 +66,17 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 <p class="hardware-note">Default PLC input behaviour is Active Low with the Pico's internal pull-up enabled and a 10 ms software debounce filter. A debounce value of 0 disables filtering.</p>
 </section>
 <section class="card">
+<h2>I²C Bus Roles</h2>
+<p>Assign the Pico's two hardware I²C controllers to exclusive firmware roles.</p>
+<div class="hardware-options">
+<label class="hardware-option"><span><strong>PLC I/O bus</strong> <select id="plcI2cRole"><option value="I2C0">I2C0</option><option value="I2C1">I2C1</option></select> — Core 0, MCP23017 devices, 400 kHz in this phase.</span></label>
+<label class="hardware-option"><span><strong>HMI bus</strong> <select id="hmiI2cRole"><option value="I2C0">I2C0</option><option value="I2C1" selected>I2C1</option></select> — Core 1, LCD/future displays, fixed at 400 kHz.</span></label>
+</div>
+<p class="hardware-note">Production configuration requires different hardware controllers and a complete SDA/SCL pin pair for each active role.</p>
+</section>
+<section class="card">
 <h2>I²C I/O Expansion Devices</h2>
-<p>Enable each MCP23017 installed on the I²C bus. The standard MCP23017 address range is shown below.</p>
+<p>Enable each MCP23017 installed on the PLC I/O bus. The standard MCP23017 address range is shown below.</p>
 <div class="hardware-options" aria-label="MCP23017 digital input defaults">
 <label class="hardware-option"><input id="mcpInputsActiveLow" type="checkbox" checked><span><strong>Inputs Active Low</strong> — a LOW MCP23017 input level is interpreted as logical TRUE.</span></label>
 <label class="hardware-option"><input id="mcpInputsPullUp" type="checkbox" checked><span><strong>Enable Internal Pull-up Resistors</strong> on MCP23017 pins configured as digital inputs.</span></label>
@@ -172,7 +181,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.14';
+const CONFIG_VERSION='1.15';
 const CONFIG_SCHEMA='PICO_PLC_CONFIGURATION';
 const CONFIG_SCHEMA_VERSION=2;
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
@@ -185,6 +194,8 @@ const picoInputsDebounceMs=document.getElementById('picoInputsDebounceMs');
 const mcpInputsActiveLow=document.getElementById('mcpInputsActiveLow');
 const mcpInputsPullUp=document.getElementById('mcpInputsPullUp');
 const mcpInputsDebounceMs=document.getElementById('mcpInputsDebounceMs');
+const plcI2cRole=document.getElementById('plcI2cRole');
+const hmiI2cRole=document.getElementById('hmiI2cRole');
 const mcpInterruptPin=document.getElementById('mcpInterruptPin');
 const mcpInterruptMode=document.getElementById('mcpInterruptMode');
 const mcpSharedInterruptLabel=document.getElementById('mcpSharedInterruptLabel');
@@ -651,19 +662,16 @@ function configuredI2CBuses(){
  return ['I2C0','I2C1'].filter(bus=>!!activeI2CPins(bus));
 }
 function syncMcpBusSelections(){
- const buses=configuredI2CBuses();
- const implied=buses.length===1?buses[0]:null;
+ const plcBus=plcI2cRole.value;
  document.querySelectorAll('.mcp-bus').forEach(sel=>{
-   if(implied)sel.value=implied;
-   sel.disabled=!!implied;
-   sel.title=implied?`${implied} is implied by the Digital I/O configuration.`:'Select the I²C bus for this MCP23017.';
+   sel.value=plcBus;
+   sel.disabled=true;
+   sel.title=`${plcBus} is assigned to the PLC I/O role.`;
  });
 }
 function selectedMcpBus(address){
- const buses=configuredI2CBuses();
- if(buses.length===1)return buses[0];
- const dev=devices.find(d=>d.dataset.address===address);
- return dev?.closest('.device-row')?.querySelector('.mcp-bus')?.value||'I2C0';
+ void address;
+ return plcI2cRole.value;
 }
 function activeI2CPins(protocol){
  const group=communicationGroups.find(g=>g.protocol===protocol && Object.entries(g.pins).every(([pin,fn])=>{
@@ -747,8 +755,10 @@ function renderLcdDevices(){
    const busTd=document.createElement('td');
    const bus=document.createElement('select');
    bus.innerHTML='<option value="I2C0">I2C0</option><option value="I2C1">I2C1</option>';
-   bus.value=['I2C0','I2C1'].includes(device.bus)?device.bus:'I2C0';
-   bus.addEventListener('change',()=>device.bus=bus.value);
+   device.bus=hmiI2cRole.value;
+   bus.value=hmiI2cRole.value;
+   bus.disabled=true;
+   bus.title=`${hmiI2cRole.value} is assigned to the HMI role.`;
    busTd.appendChild(bus);
 
    const addressTd=document.createElement('td');
@@ -793,7 +803,7 @@ function addLcdDevice(){
    id,
    name:`LCD ${lcdDevices.length+1}`,
    enabled:true,
-   bus:'I2C0',
+   bus:hmiI2cRole.value,
    address:'0x3F',
    geometry:'16x2',
    messageRegister:nextMessageRegister()
@@ -940,7 +950,7 @@ function buildLcdConfiguration(){
    id:device.id||`LCD${index+1}`,
    name:String(device.name||`LCD ${index+1}`).trim(),
    enabled:device.enabled!==false,
-   bus:['I2C0','I2C1'].includes(device.bus)?device.bus:'I2C0',
+   bus:hmiI2cRole.value,
    address:normalizeLcdAddress(device.address)||String(device.address||''),
    geometry:LCD_GEOMETRIES[device.geometry]?device.geometry:'16x2',
    columns:LCD_GEOMETRIES[device.geometry]?.columns||16,
@@ -1037,6 +1047,10 @@ function buildCanonicalConfiguration(){
        debounceMs:normalizedDebounceMs(mcpInputsDebounceMs)
      }
    },
+   i2cRoles:{
+     plc:{controller:plcI2cRole.value,clockHz:400000},
+     hmi:{controller:hmiI2cRole.value,clockHz:400000}
+   },
    mcpRuntime,
    lcd:buildLcdConfiguration(),
    i2cDevices:enabledMcp.map(address=>{
@@ -1099,6 +1113,19 @@ function validateConfiguration(config){
      .filter(g=>Object.entries(g.pins).every(([pin,fn])=>getPicoState(pin).function===fn));
    if(selected.length>1)errors.push(`${protocol} is assigned to more than one Pico pin group.`);
  });
+ const plcRole=config.i2cRoles?.plc?.controller||'I2C0';
+ const hmiRole=config.i2cRoles?.hmi?.controller||'I2C1';
+ if(!['I2C0','I2C1'].includes(plcRole))errors.push('PLC I/O role must use I2C0 or I2C1.');
+ if(!['I2C0','I2C1'].includes(hmiRole))errors.push('HMI role must use I2C0 or I2C1.');
+ if(plcRole===hmiRole)errors.push('PLC I/O and HMI roles must use different hardware I²C controllers.');
+ const plcPins=activeI2CPins(plcRole);
+ const hmiPins=activeI2CPins(hmiRole);
+ if(config.mcp23017.length&&!plcPins)errors.push(`${plcRole} is assigned to PLC I/O but has no complete enabled SDA/SCL pin pair.`);
+ if((config.lcd?.devices||[]).some(d=>d.enabled)&&!hmiPins)errors.push(`${hmiRole} is assigned to HMI but has no complete enabled SDA/SCL pin pair.`);
+ if(plcPins&&hmiPins){
+   const rolePins=[plcPins.sda,plcPins.scl,hmiPins.sda,hmiPins.scl];
+   if(new Set(rolePins).size!==4)errors.push('PLC I/O and HMI bus roles must use non-conflicting SDA/SCL GPIO pins.');
+ }
  if(config.mcp23017.length){
    const validGp=pin=>/^GP(?:[0-9]|1[0-9]|2[0-2]|2[6-8])$/.test(pin||'');
    const mode=config.mcpRuntime?.interruptMode==='dedicated'?'dedicated':'shared';
@@ -1106,6 +1133,7 @@ function validateConfiguration(config){
 
    for(const dev of config.mcp23017){
      if(!['I2C0','I2C1'].includes(dev.bus))errors.push(`${dev.address} has an invalid I²C bus selection.`);
+     if(dev.bus!==plcRole)errors.push(`${dev.address} must use the configured PLC I/O controller ${plcRole}.`);
      if(!dev.sdaPin||!dev.sclPin)errors.push(`${dev.address} uses ${dev.bus}, but a complete enabled ${dev.bus} SDA/SCL pin group has not been configured in the Digital I/O table.`);
 
      const hasInputs=(dev.pins||[]).some(pin=>pin.enabled && classifyFunction(pin.function)==='I');
@@ -1146,6 +1174,7 @@ function validateConfiguration(config){
 
      if(!String(device.name||'').trim())errors.push('An enabled LCD device is missing a Device Name.');
      if(!['I2C0','I2C1'].includes(device.bus))errors.push(`${device.name||device.id} has an invalid I²C bus selection.`);
+     if(device.bus!==hmiRole)errors.push(`${device.name||device.id} must use the configured HMI controller ${hmiRole}.`);
      if(!normalizeLcdAddress(device.address))errors.push(`${device.name||device.id} has an invalid I²C address.`);
      if(!LCD_GEOMETRIES[device.geometry])errors.push(`${device.name||device.id} has an unsupported display geometry.`);
 
@@ -1255,12 +1284,18 @@ function loadConfiguration(){
    );
 
    const savedMcpDevices=(config.i2cDevices||config.mcp23017||[]);
+   const savedLcdDevices=Array.isArray(config.lcd?.devices)?config.lcd.devices:[];
+   const inferredPlcBus=config.i2cRoles?.plc?.controller||savedMcpDevices[0]?.bus||'I2C0';
+   let inferredHmiBus=config.i2cRoles?.hmi?.controller||savedLcdDevices.find(d=>d.enabled!==false)?.bus||(inferredPlcBus==='I2C0'?'I2C1':'I2C0');
+   if(inferredHmiBus===inferredPlcBus)inferredHmiBus=inferredPlcBus==='I2C0'?'I2C1':'I2C0';
+   plcI2cRole.value=['I2C0','I2C1'].includes(inferredPlcBus)?inferredPlcBus:'I2C0';
+   hmiI2cRole.value=['I2C0','I2C1'].includes(inferredHmiBus)?inferredHmiBus:(plcI2cRole.value==='I2C0'?'I2C1':'I2C0');
    const enabled=new Set(savedMcpDevices.map(x=>x.address));
    devices.forEach(d=>{
      d.checked=enabled.has(d.dataset.address);
      const savedDev=savedMcpDevices.find(x=>x.address===d.dataset.address);
      const busSel=d.closest('.device-row')?.querySelector('.mcp-bus');
-     if(busSel)busSel.value=['I2C0','I2C1'].includes(savedDev?.bus)?savedDev.bus:'I2C0';
+     if(busSel)busSel.value=plcI2cRole.value;
    });
    const savedMode=config.mcpRuntime?.interruptMode;
    mcpInterruptMode.value=savedMode==='dedicated'?'dedicated':'shared';
@@ -1283,7 +1318,7 @@ function loadConfiguration(){
            id:d.id||`LCD${index+1}`,
            name:d.name||`LCD ${index+1}`,
            enabled:d.enabled!==false,
-           bus:['I2C0','I2C1'].includes(d.bus)?d.bus:'I2C0',
+           bus:hmiI2cRole.value,
            address:normalizeLcdAddress(d.address)||'0x3F',
            geometry:LCD_GEOMETRIES[d.geometry]?d.geometry:'16x2',
            messageRegister:/^M:\d{5}$/.test(d.messageRegister||'')
@@ -1302,11 +1337,20 @@ function loadConfiguration(){
  updateSummary();
  refreshMcpInterruptUi();
  syncMcpBusSelections();
+ renderLcdDevices();
 }
 tabs.forEach(btn=>btn.addEventListener('click',()=>{
  tabs.forEach(b=>b.classList.toggle('active',b===btn));
  panels.forEach(p=>p.classList.toggle('active',p.id===btn.dataset.tab));
 }));
+plcI2cRole.addEventListener('change',()=>{
+ if(plcI2cRole.value===hmiI2cRole.value)hmiI2cRole.value=plcI2cRole.value==='I2C0'?'I2C1':'I2C0';
+ syncMcpBusSelections(); renderLcdDevices(); rebuildDigitalTable();
+});
+hmiI2cRole.addEventListener('change',()=>{
+ if(hmiI2cRole.value===plcI2cRole.value)plcI2cRole.value=hmiI2cRole.value==='I2C0'?'I2C1':'I2C0';
+ syncMcpBusSelections(); renderLcdDevices(); rebuildDigitalTable();
+});
 devices.forEach(d=>d.addEventListener('change',()=>{updateSummary();refreshMcpInterruptUi();syncMcpBusSelections();}));
 document.querySelectorAll('.mcp-bus').forEach(sel=>sel.addEventListener('change',updateSummary));
 mcpInterruptMode.addEventListener('change',()=>{
