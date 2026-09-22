@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.16</title>
+<title>PLC Configuration v1.17</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
@@ -181,7 +181,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.16';
+const CONFIG_VERSION='1.17';
 const CONFIG_SCHEMA='PICO_PLC_CONFIGURATION';
 const CONFIG_SCHEMA_VERSION=2;
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
@@ -425,7 +425,7 @@ function communicationDescriptor(pin,fn){
  const protocol=communicationProtocol(fn);
  if(!protocol)return '';
  const physicalPin=picoPhysicalPins[pin];
- return `${fn} — Pin ${physicalPin ?? pin}`;
+ return `${fn} - Pin ${physicalPin ?? pin}`;
 }
 function physicalPackagePin(resource,pin){
  if(resource==='Raspberry Pi Pico')return picoPhysicalPins[pin]??null;
@@ -438,7 +438,7 @@ function descriptorWithPhysicalPin(resource,pin,fn,value){
  const physicalPin=physicalPackagePin(resource,pin);
  if(physicalPin===null)return descriptor;
  const base=descriptor.replace(/\s+(?:â€”|—|-)\s+Pin\s+\d+\s*$/i,'').trim();
- return `${base} â€” Pin ${physicalPin}`;
+ return `${base} - Pin ${physicalPin}`;
 }
 function applyPicoDescriptorRule(pin){
  const state=getPicoState(pin);
