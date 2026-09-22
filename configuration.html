@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.15</title>
+<title>PLC Configuration v1.16</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
@@ -112,7 +112,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 <div id="digital" class="tab-panel">
 <section class="card">
 <h2>Digital I/O Table</h2>
-<p>The Pico GPIO points are listed first. Enabled MCP23017 expansion points are added automatically below them. Choose the required function, enter a descriptor, then the point is automatically set to <strong>Enabled</strong>. Logical input and output numbers are assigned as persistent five-digit addresses such as <strong>I:00001</strong> and <strong>O:00001</strong>. Once assigned, an address is never silently renumbered to another physical point.</p>
+<p>The Pico GPIO points are listed first. Enabled MCP23017 expansion points are added automatically below them. Choose the required function, enter a descriptor, then the point is automatically set to <strong>Enabled</strong>. Logical input and output numbers are assigned as persistent five-digit addresses such as <strong>I:00001</strong> and <strong>O:00001</strong>. Free gaps are assigned before higher addresses, while an address retained by an existing physical point is never silently reassigned.</p>
 <div class="table-wrap">
 <table class="io-table">
 <thead><tr><th>Logical Point</th><th>Physical Resource</th><th>Pin</th><th>Function</th><th>Descriptor</th><th>Active</th></tr></thead>
@@ -120,7 +120,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </table>
 </div>
 <div class="actions"><button id="resetIoButton" class="danger-button" type="button">Reset I/O</button></div>
-<p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Disabled. Physical input/output logical addresses are allocated monotonically and are not reused automatically, so existing ladder bindings cannot silently change meaning. Once a Function is selected and a Descriptor is present, Active is automatically set to Enabled. Pico functions other than ordinary Input or Output use Logical Point <strong>n/a</strong> but may still be Enabled. Selecting an I²C, UART, or SPI function automatically configures the matching pin(s), fills each communication pin Descriptor with its selected function and physical Pico pin number, and disables alternate pin groups for the same peripheral until it is released.</p>
+<p class="status-note">For MCP23017 points, Function defaults to Output and Active defaults to Disabled. Physical input/output logical addresses use the lowest free number in their respective ranges; disabled points retain their assignments so existing ladder bindings cannot silently change meaning. Once a Function is selected and a Descriptor is present, Active is automatically set to Enabled. Ordinary Pico and MCP digital I/O descriptors automatically include the physical package pin number. Pico functions other than ordinary Input or Output use Logical Point <strong>n/a</strong> but may still be Enabled. Selecting an I²C, UART, or SPI function automatically configures the matching pin(s), fills each communication pin Descriptor with its selected function and physical Pico pin number, and disables alternate pin groups for the same peripheral until it is released.</p>
 </section>
 </div>
 
@@ -181,7 +181,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.15';
+const CONFIG_VERSION='1.16';
 const CONFIG_SCHEMA='PICO_PLC_CONFIGURATION';
 const CONFIG_SCHEMA_VERSION=2;
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
@@ -313,6 +313,10 @@ const picoPhysicalPins={
  GP10:14,GP11:15,GP12:16,GP13:17,GP14:19,GP15:20,GP16:21,GP17:22,GP18:24,GP19:25,
  GP20:26,GP21:27,GP22:29,GP26:31,GP27:32,GP28:34
 };
+const mcpPhysicalPins={
+ GPA0:21,GPA1:22,GPA2:23,GPA3:24,GPA4:25,GPA5:26,GPA6:27,GPA7:28,
+ GPB0:1,GPB1:2,GPB2:3,GPB3:4,GPB4:5,GPB5:6,GPB6:7,GPB7:8
+};
 const picoAlternateFunctions={
  GP0:['UART0 TX','I2C0 SDA','SPI0 RX'],
  GP1:['UART0 RX','I2C0 SCL','SPI0 CSn'],
@@ -422,6 +426,19 @@ function communicationDescriptor(pin,fn){
  if(!protocol)return '';
  const physicalPin=picoPhysicalPins[pin];
  return `${fn} — Pin ${physicalPin ?? pin}`;
+}
+function physicalPackagePin(resource,pin){
+ if(resource==='Raspberry Pi Pico')return picoPhysicalPins[pin]??null;
+ if(parseMcpResource(resource))return mcpPhysicalPins[pin]??null;
+ return null;
+}
+function descriptorWithPhysicalPin(resource,pin,fn,value){
+ const descriptor=String(value||'').trim();
+ if(!descriptor || !classifyFunction(fn))return descriptor;
+ const physicalPin=physicalPackagePin(resource,pin);
+ if(physicalPin===null)return descriptor;
+ const base=descriptor.replace(/\s+(?:â€”|—|-)\s+Pin\s+\d+\s*$/i,'').trim();
+ return `${base} â€” Pin ${physicalPin}`;
 }
 function applyPicoDescriptorRule(pin){
  const state=getPicoState(pin);
@@ -547,6 +564,9 @@ function appendIORow(resource,pin,kind){
    if(autoText){state.descriptor=autoText;state.descriptorAuto=true;}
    else if(state.descriptorAuto){state.descriptor='';state.descriptorAuto=false;}
  }
+ if(classifyFunction(state.function) && state.descriptor){
+   state.descriptor=descriptorWithPhysicalPin(resource,pin,state.function,state.descriptor);
+ }
  descriptor.value=state.descriptor||'';
  descriptor.readOnly=kind==='pico' && !!communicationProtocol(state.function);
  descriptor.title=descriptor.readOnly?'Descriptor is assigned automatically for communication functions.':'';
@@ -566,6 +586,11 @@ function appendIORow(resource,pin,kind){
    renumberLogicalPoints();
 });
  descriptor.addEventListener('input',()=>{state.descriptor=descriptor.value;syncActiveAvailability();renumberLogicalPoints();});
+ descriptor.addEventListener('change',()=>{
+   state.descriptor=descriptorWithPhysicalPin(resource,pin,state.function,descriptor.value);
+   descriptor.value=state.descriptor;
+   syncActiveAvailability();
+ });
  active.addEventListener('change',()=>{state.active=active.value;renumberLogicalPoints();syncMcpBusSelections();});
  descriptorTd.appendChild(descriptor);activeTd.appendChild(active);
  tr.append(logical,resourceTd,pinTd,functionTd,descriptorTd,activeTd);digitalBody.appendChild(tr);
@@ -608,16 +633,29 @@ function rebuildDigitalTable(){
  refreshCommunicationOptionAvailability();
  syncMcpBusSelections();
 }
-function allocateLogicalPoint(cls){
- if(cls==='I'){
-   if(logicalAllocation.nextInput>9999)throw new Error('No physical input logical addresses remain in the I:00001-I:09999 range.');
-   return `I:${String(logicalAllocation.nextInput++).padStart(5,'0')}`;
- }
- if(cls==='O'){
-   if(logicalAllocation.nextOutput>9999)throw new Error('No physical output logical addresses remain in the O:00001-O:09999 range.');
-   return `O:${String(logicalAllocation.nextOutput++).padStart(5,'0')}`;
- }
+function assignedLogicalNumbers(cls,excludeState=null){
+ const used=new Set();
+ Object.values(ioState).forEach(state=>{
+   if(state===excludeState)return;
+   const match=new RegExp(`^${cls}:(\\d{5})$`).exec(String(state.logicalPoint||''));
+   if(match)used.add(Number(match[1]));
+ });
+ return used;
+}
+function lowestFreeLogicalNumber(cls,excludeState=null){
+ const used=assignedLogicalNumbers(cls,excludeState);
+ for(let number=1;number<=9999;number++)if(!used.has(number))return number;
  return null;
+}
+function refreshLogicalAllocationHints(){
+ logicalAllocation.nextInput=lowestFreeLogicalNumber('I')??10000;
+ logicalAllocation.nextOutput=lowestFreeLogicalNumber('O')??10000;
+}
+function allocateLogicalPoint(cls,state=null){
+ if(cls!=='I'&&cls!=='O')return null;
+ const number=lowestFreeLogicalNumber(cls,state);
+ if(number===null)throw new Error(`No physical ${cls==='I'?'input':'output'} logical addresses remain in the ${cls}:00001-${cls}:09999 range.`);
+ return `${cls}:${String(number).padStart(5,'0')}`;
 }
 function refreshLogicalPoints(){
  [...digitalBody.rows].forEach(tr=>{
@@ -626,7 +664,7 @@ function refreshLogicalPoints(){
    const cls=classifyFunction(state.function);
    if((cls==='I'||cls==='O') && state.active==='enabled'){
      if(!state.logicalPoint || state.logicalClass!==cls){
-       state.logicalPoint=allocateLogicalPoint(cls);
+       state.logicalPoint=allocateLogicalPoint(cls,state);
        state.logicalClass=cls;
      }
      logical.textContent=state.logicalPoint;
@@ -638,6 +676,7 @@ function refreshLogicalPoints(){
      logical.textContent='—';
    }
  });
+ refreshLogicalAllocationHints();
 }
 // Legacy function name retained for existing event handlers.
 function renumberLogicalPoints(){refreshLogicalPoints();}
@@ -994,7 +1033,8 @@ function buildCanonicalConfiguration(){
    const resource=key.slice(0,split);
    const pin=key.slice(split+1);
    const fn=state.function||'Output';
-   const descriptor=String(state.descriptor||'').trim();
+   const descriptor=descriptorWithPhysicalPin(resource,pin,fn,state.descriptor);
+   state.descriptor=descriptor;
    const enabled=state.active==='enabled';
    const cls=classifyFunction(fn);
    const logicalPoint=(cls && state.logicalPoint)?state.logicalPoint:null;
@@ -1241,7 +1281,6 @@ function saveConfiguration(){
 function migrateLegacyLogicalPoints(){
  // Older versions generated three-digit addresses dynamically. Assign stable
  // five-digit addresses to any currently enabled physical I/O that lacks one.
- const usedI=[];const usedO=[];
  Object.values(ioState).forEach(state=>{
    if(state.logicalPoint){
      const m=/^([IO]):(\d+)$/.exec(state.logicalPoint);
@@ -1249,12 +1288,10 @@ function migrateLegacyLogicalPoints(){
        const cls=m[1];const n=Number(m[2]);
        state.logicalPoint=`${cls}:${String(n).padStart(5,'0')}`;
        state.logicalClass=cls;
-       (cls==='I'?usedI:usedO).push(n);
      }
    }
  });
- logicalAllocation.nextInput=Math.max(logicalAllocation.nextInput,...usedI.map(n=>n+1),1);
- logicalAllocation.nextOutput=Math.max(logicalAllocation.nextOutput,...usedO.map(n=>n+1),1);
+ refreshLogicalAllocationHints();
 }
 function loadConfiguration(){
  const saved=localStorage.getItem('picoPLCConfiguration');
