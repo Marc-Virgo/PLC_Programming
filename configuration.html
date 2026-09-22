@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLC Configuration v1.17</title>
+<title>PLC Configuration v1.18</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6;color:#1f2937}header{background:#111827;color:white;padding:18px 24px}header h1{margin:0}
 main{width:min(96vw,1200px);margin:24px auto}.card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:20px}
@@ -181,7 +181,7 @@ button,.btn{border:0;border-radius:9px;padding:12px 18px;background:#111827;colo
 </section>
 </main>
 <script>
-const CONFIG_VERSION='1.17';
+const CONFIG_VERSION='1.18';
 const CONFIG_SCHEMA='PICO_PLC_CONFIGURATION';
 const CONFIG_SCHEMA_VERSION=2;
 document.title=`PLC Configuration v${CONFIG_VERSION}`;
@@ -367,7 +367,8 @@ const communicationGroups=[
  {id:'UART1_A',protocol:'UART1',pins:{GP4:'UART1 TX',GP5:'UART1 RX'}},
  {id:'UART1_B',protocol:'UART1',pins:{GP8:'UART1 TX',GP9:'UART1 RX'}},
  {id:'SPI0_A',protocol:'SPI0',pins:{GP0:'SPI0 RX',GP1:'SPI0 CSn',GP2:'SPI0 SCK',GP3:'SPI0 TX'}},
- {id:'SPI0_B',protocol:'SPI0',pins:{GP16:'SPI0 RX',GP17:'SPI0 CSn',GP18:'SPI0 SCK',GP19:'SPI0 TX'}},
+ {id:'SPI0_B',protocol:'SPI0',pins:{GP4:'SPI0 RX',GP5:'SPI0 CSn',GP6:'SPI0 SCK',GP7:'SPI0 TX'}},
+ {id:'SPI0_C',protocol:'SPI0',pins:{GP16:'SPI0 RX',GP17:'SPI0 CSn',GP18:'SPI0 SCK',GP19:'SPI0 TX'}},
  {id:'SPI1_A',protocol:'SPI1',pins:{GP8:'SPI1 RX',GP9:'SPI1 CSn',GP10:'SPI1 SCK',GP11:'SPI1 TX'}},
  {id:'SPI1_B',protocol:'SPI1',pins:{GP12:'SPI1 RX',GP13:'SPI1 CSn',GP14:'SPI1 SCK',GP15:'SPI1 TX'}}
 ];
@@ -381,6 +382,14 @@ function communicationProtocol(fn){
 function groupForPinFunction(pin,fn){
  return communicationGroups.find(g=>g.pins[pin]===fn)||null;
 }
+function assertCommunicationGroupCoverage(){
+ Object.entries(picoAlternateFunctions).forEach(([pin,functions])=>{
+   functions.filter(fn=>/^(?:SPI|UART)\d\s/.test(fn)).forEach(fn=>{
+     if(!groupForPinFunction(pin,fn))throw new Error(`${pin} ${fn} is missing its automatic communication pin group.`);
+   });
+ });
+}
+assertCommunicationGroupCoverage();
 function picoFunctions(pin){
  // Every exposed Pico GPIO can be used for ordinary digital input/output or PWM.
  // Alternate-function choices below follow the supplied Raspberry Pi Pico pinout.
