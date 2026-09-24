@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PLC Workspace v1.0</title>
+<title>PLC Workspace v1.1</title>
 <style>
 *{box-sizing:border-box}html,body{height:100%;margin:0}body{font-family:Arial,sans-serif;background:#f3f4f6;color:#111827;display:flex;flex-direction:column;overflow:hidden}
 .workspace-header{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:8px 14px;background:#111827;color:#fff;border-bottom:1px solid #475569}
@@ -1185,12 +1185,23 @@
     "}",
     "function validateConfiguration(config){",
     " const errors=[];",
+    " // Older saved configurations use ioState without canonical gpio arrays.",
+    " // Validate those saved entries without rewriting or discarding their fields.",
+    " const gpio = config.gpio === undefined",
+    "   ? Object.entries(config.ioState || {})",
+    "       .filter(([key])=\u003ekey.startsWith(\u0027Raspberry Pi Pico|\u0027))",
+    "       .map(([key,state])=\u003e({...state,pin:key.split(\u0027|\u0027).pop(),enabled:state?.active===\u0027enabled\u0027}))",
+    "   : config.gpio;",
+    " const mcpDevices = config.mcp23017 === undefined ? [] : config.mcp23017;",
+    " if(!Array.isArray(gpio))errors.push(\u0027Saved Pico GPIO configuration must be an array. Load a valid project or save the Digital I/O configuration to repair it.\u0027);",
+    " if(!Array.isArray(mcpDevices) || mcpDevices.some(device=\u003e!device || (device.pins!==undefined \u0026\u0026 !Array.isArray(device.pins))))errors.push(\u0027Saved MCP23017 devices and their pin lists must be arrays. Load a valid configuration to repair them.\u0027);",
+    " if(errors.length)return errors;",
     " const picoDebounce=Number(config.inputDefaults?.pico?.debounceMs);",
     " const mcpDebounce=Number(config.inputDefaults?.mcp23017?.debounceMs);",
     " if(!Number.isInteger(picoDebounce)||picoDebounce\u003c0||picoDebounce\u003e1000)errors.push(\u0027Pico Digital Input Debounce must be an integer from 0 to 1000 ms.\u0027);",
     " if(!Number.isInteger(mcpDebounce)||mcpDebounce\u003c0||mcpDebounce\u003e1000)errors.push(\u0027MCP23017 Digital Input Debounce must be an integer from 0 to 1000 ms.\u0027);",
     " const logicalSeen=new Map();",
-    " for(const row of [...config.gpio,...config.mcp23017.flatMap(d=\u003ed.pins.map(p=\u003e({...p,address:d.address})))]){",
+    " for(const row of [...gpio,...mcpDevices.flatMap(d=\u003e(d.pins||[]).map(p=\u003e({...p,address:d.address})))]){",
     "   if(!row.enabled)continue;",
     "   if(!String(row.function||\u0027\u0027).trim())errors.push(\u0027An enabled I/O point has no Function selected.\u0027);",
     "   if(!String(row.descriptor||\u0027\u0027).trim())errors.push(`Enabled ${row.pin||\u0027I/O point\u0027} is missing a Descriptor.`);",
@@ -1212,18 +1223,18 @@
     " if(plcRole===hmiRole)errors.push(\u0027PLC I/O and HMI roles must use different hardware I²C controllers.\u0027);",
     " const plcPins=activeI2CPins(plcRole);",
     " const hmiPins=activeI2CPins(hmiRole);",
-    " if(config.mcp23017.length\u0026\u0026!plcPins)errors.push(`${plcRole} is assigned to PLC I/O but has no complete enabled SDA/SCL pin pair.`);",
+    " if(mcpDevices.length\u0026\u0026!plcPins)errors.push(`${plcRole} is assigned to PLC I/O but has no complete enabled SDA/SCL pin pair.`);",
     " if((config.lcd?.devices||[]).some(d=\u003ed.enabled)\u0026\u0026!hmiPins)errors.push(`${hmiRole} is assigned to HMI but has no complete enabled SDA/SCL pin pair.`);",
     " if(plcPins\u0026\u0026hmiPins){",
     "   const rolePins=[plcPins.sda,plcPins.scl,hmiPins.sda,hmiPins.scl];",
     "   if(new Set(rolePins).size!==4)errors.push(\u0027PLC I/O and HMI bus roles must use non-conflicting SDA/SCL GPIO pins.\u0027);",
     " }",
-    " if(config.mcp23017.length){",
+    " if(mcpDevices.length){",
     "   const validGp=pin=\u003e/^GP(?:[0-9]|1[0-9]|2[0-2]|2[6-8])$/.test(pin||\u0027\u0027);",
     "   const mode=config.mcpRuntime?.interruptMode===\u0027dedicated\u0027?\u0027dedicated\u0027:\u0027shared\u0027;",
     "   const usedIrq=new Map();",
     "",
-    "   for(const dev of config.mcp23017){",
+    "   for(const dev of mcpDevices){",
     "     if(![\u0027I2C0\u0027,\u0027I2C1\u0027].includes(dev.bus))errors.push(`${dev.address} has an invalid I²C bus selection.`);",
     "     if(dev.bus!==plcRole)errors.push(`${dev.address} must use the configured PLC I/O controller ${plcRole}.`);",
     "     if(!dev.sdaPin||!dev.sclPin)errors.push(`${dev.address} uses ${dev.bus}, but a complete enabled ${dev.bus} SDA/SCL pin group has not been configured in the Digital I/O table.`);",
